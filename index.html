@@ -61,9 +61,11 @@ function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
 const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:''}};
-let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[];
+let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[];
 const snap={products:{},requests:{},set:''};
 const clean=o=>JSON.parse(JSON.stringify(o));
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function logVisit(u){try{const k=ymd(new Date());if(localStorage.getItem('ac_v')===k)return;setDoc(doc(db,'visits',k+'_'+u.uid),{date:k,uid:u.uid}).then(()=>localStorage.setItem('ac_v',k)).catch(()=>{})}catch(e){}}
 function save(){syncDb().catch(e=>alert('Could not save: '+e.message))}
 async function syncDb(){
   if(!auth.currentUser)return;const w=[];
@@ -78,6 +80,8 @@ function startListeners(user){
   const re=()=>{const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;render()};
   unsubs.push(onSnapshot(collection(db,'products'),x=>{S.products=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>a.id<b.id?-1:1);snap.products={};S.products.forEach(p=>snap.products[p.id]=JSON.stringify(p));re()},e=>console.log(e)));
   unsubs.push(onSnapshot(doc(db,'settings','main'),x=>{if(x.exists()){const d=x.data();if(d.catSizes)S.catSizes=d.catSizes;if(d.cfg)Object.assign(S.cfg,d.cfg);snap.set=JSON.stringify([S.catSizes,S.cfg])}re()},e=>console.log(e)));
+  if(staffOK)unsubs.push(onSnapshot(collection(db,'customers'),x=>{CU=x.docs.map(d=>d.data()).sort((a,b)=>(b.time||0)-(a.time||0));re()},e=>console.log(e)));
+  if(staffOK)unsubs.push(onSnapshot(query(collection(db,'visits'),where('date','>=',ymd(new Date(Date.now()-92*864e5)))),x=>{VI=x.docs.map(d=>d.data());re()},e=>console.log(e)));
   const rq=staffOK?collection(db,'requests'):query(collection(db,'requests'),where('uid','==',user.uid));
   unsubs.push(onSnapshot(rq,x=>{S.requests=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>b.time-a.time);snap.requests={};S.requests.forEach(r=>snap.requests[r.id]=JSON.stringify(r));re()},e=>console.log(e)));
 }
@@ -85,7 +89,7 @@ onAuthStateChanged(auth,async user=>{
   if(!user){await signInAnonymously(auth).catch(e=>{root.textContent='Could not start: '+e.message});return}
   staffOK=!user.isAnonymous;C=null;
   if(staffOK){mode='staff'}else{mode='cust';try{const d=await getDoc(doc(db,'customers',user.uid));if(d.exists())C=d.data()}catch(e){}}
-  startListeners(user);ready=true;render();
+  startListeners(user);ready=true;if(!staffOK)logVisit(user);render();
 });
 const root=document.getElementById('app');
 const cats=()=>[...new Set([...Object.keys(S.catSizes),...S.products.map(p=>p.cat)])];
@@ -151,13 +155,13 @@ function openZoom(p){
 }
 function login(){
   const n=h('input',{placeholder:'Your name or nickname'}),p=h('input',{placeholder:'Phone number',inputmode:'tel'});
-  return h('div',{class:'box'},h('h2',{},'Welcome'),h('p',{class:'mu'},'Enter your details to browse our full collection and pick the styles you want to see in the shop.'),
+  return h('div',{class:'box'},h('h2',{},'Welcome'),h('p',{class:'mu'},'Enter your details to browse our full collection and pick the styles you want to see in the shop.'),h('p',{class:'mu',style:'font-size:12px'},'Your name and phone number are used only to prepare your selection at the shop.'),
     h('label',{},'Name'),n,h('label',{},'Phone'),p,
     h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{
       const name=n.value.trim(),ph=p.value.replace(/\D/g,'');
       if(!name||ph.length<8){alert('Please enter your name and a valid phone number');return}
       const id='AC'+Math.floor(10000+Math.random()*90000);
-      C={id,name,phone:ph};setDoc(doc(db,'customers',auth.currentUser.uid),C).catch(()=>{});render()}},'Start browsing')));
+      C={id,name,phone:ph,time:Date.now()};setDoc(doc(db,'customers',auth.currentUser.uid),C).catch(()=>{});render()}},'Start browsing')));
 }
 function shop(){
   if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+'. We will keep everything ready for you at the shop.'),h('button',{class:'btn',onclick:()=>{done=null;render()}},'Pick more styles'));
@@ -210,7 +214,7 @@ function review(){
 function staff(){
   if(!staffOK){const em=h('input',{type:'email',placeholder:'Staff email'}),pw=h('input',{type:'password',placeholder:'Password'});
     return h('div',{class:'box'},h('h2',{},'Staff login'),h('label',{},'Email'),em,h('label',{},'Password'),pw,h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{try{await signInWithEmailAndPassword(auth,em.value.trim(),pw.value)}catch(e){alert('Login failed: '+e.code)}}},'Open')))}
-  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='req'?' on':''),onclick:()=>{tab='req';render()}},'Requests ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='req'?reqs():tab==='cat'?catsView():tab==='set'?setView():prods());
+  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='req'?' on':''),onclick:()=>{tab='req';render()}},'Requests ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='req'?reqs():tab==='cat'?catsView():tab==='set'?setView():tab==='cus'?cusView():prods());
 }
 function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t='Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
 function reqs(){
@@ -221,6 +225,24 @@ function reqs(){
     r.note?h('div',{class:'note'},'Note: '+r.note):'',
     h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size,h('br'),i.loc||''))),
     h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('div',{class:'row',style:'flex-wrap:wrap'},['New','Packing','Ready at shop','Collected'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;save();render()}},s))))));
+}
+function cusView(){
+  const m=new Map();CU.forEach(c=>{if(c.phone&&!m.has(c.phone))m.set(c.phone,c)});const L=[...m.values()];
+  const csv=()=>'\ufeff'+['Customer ID,Name,Phone,Joined'].concat(L.map(c=>[c.id,c.name,c.phone,c.time?new Date(c.time).toLocaleDateString():''].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))).join('\n');
+  const dl=()=>{const a=h('a',{href:URL.createObjectURL(new Blob([csv()],{type:'text/csv'})),download:'airclub-customers.csv'});document.body.append(a);a.click();a.remove()};
+  const today=ymd(new Date()),mon=today.slice(0,7);
+  const cnt=f=>VI.filter(f).length,sg=f=>L.filter(c=>c.time&&f(ymd(new Date(c.time)))).length;
+  const stat=(a,b)=>h('div',{class:'box',style:'flex:1;min-width:130px;margin:0'},h('div',{class:'mu'},a),h('b',{style:'font-size:22px'},String(b)));
+  const days=[];for(let i=0;i<14;i++){const d=new Date();d.setDate(d.getDate()-i);days.push(ymd(d))}
+  const mx=Math.max(1,...days.map(k=>cnt(v=>v.date===k)));
+  const months=[...new Set([...VI.map(v=>v.date.slice(0,7)),...L.filter(c=>c.time).map(c=>ymd(new Date(c.time)).slice(0,7)),mon])].sort().reverse();
+  const stats=h('div',{},
+    h('div',{class:'row',style:'flex-wrap:wrap'},stat('Visitors today',cnt(v=>v.date===today)),stat('Visitors this month',cnt(v=>v.date.startsWith(mon)))),
+    h('div',{class:'row',style:'flex-wrap:wrap;margin-bottom:12px'},stat('New sign-ups today',sg(k=>k===today)),stat('Sign-ups this month',sg(k=>k.startsWith(mon)))),
+    h('div',{class:'box'},h('b',{},'Last 14 days (visitors)'),days.map(k=>{const n=cnt(v=>v.date===k);return h('div',{class:'row'},h('span',{class:'mu',style:'width:60px'},k.slice(5)),h('div',{style:'height:10px;border-radius:5px;background:var(--ac);min-width:2px;width:'+Math.round(n/mx*60)+'%'}),h('span',{},String(n)))})),
+    h('div',{class:'box'},h('b',{},'Month by month'),months.map(m=>h('div',{class:'row',style:'justify-content:space-between'},h('span',{},m),h('span',{class:'mu'},cnt(v=>v.date.startsWith(m))+' visitors \u00b7 '+sg(k=>k.startsWith(m))+' sign-ups')))));
+  return h('div',{},stats,h('div',{class:'row',style:'justify-content:space-between'},h('b',{},L.length+' customers'),h('button',{class:'btn s',onclick:dl},'Download CSV')),
+    L.map(c=>h('div',{class:'box'},h('b',{},c.name+' \u00b7 '+c.id),h('div',{class:'mu'},c.phone+(c.time?' \u00b7 '+new Date(c.time).toLocaleDateString():'')))));
 }
 function setView(){
   const f=(k,l,pl)=>[h('label',{},l),h('input',{value:S.cfg[k]||'',placeholder:pl,onchange:e=>{S.cfg[k]=e.target.value.trim();save()}})];
