@@ -53,7 +53,7 @@ input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10
 <main id="app"></main>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import {getAuth,onAuthStateChanged,signInAnonymously,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import {getAuth,onAuthStateChanged,signInAnonymously,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import {getFirestore,collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,query,where} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 const app=initializeApp({apiKey:"AIzaSyBnPaZfzEoDpquuMPDF62GbFxvv3CIfjpA",authDomain:"airclub-clothing.firebaseapp.com",projectId:"airclub-clothing",storageBucket:"airclub-clothing.firebasestorage.app",messagingSenderId:"361635228417",appId:"1:361635228417:web:e163a7316942ceeb500900"});
 const auth=getAuth(app),db=getFirestore(app);
@@ -61,7 +61,8 @@ function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
 const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:''}};
-let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[];
+let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]';
+const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
 const clean=o=>JSON.parse(JSON.stringify(o));
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -87,15 +88,17 @@ function startListeners(user){
 }
 onAuthStateChanged(auth,async user=>{
   if(!user){await signInAnonymously(auth).catch(e=>{root.textContent='Could not start: '+e.message});return}
-  staffOK=!user.isAnonymous;C=null;
-  if(staffOK){mode='staff'}else{mode='cust';try{const d=await getDoc(doc(db,'customers',user.uid));if(d.exists())C=d.data()}catch(e){}}
+  staffOK=!user.isAnonymous&&!!user.email&&!user.email.endsWith(CE);C=null;
+  if(staffOK){mode='staff'}else{mode='cust';try{const d=await getDoc(doc(db,'customers',user.uid));if(d.exists()){C=d.data();basket=C.basket||[];lastB=JSON.stringify(basket)}}catch(e){}}
   startListeners(user);ready=true;if(!staffOK)logVisit(user);render();
 });
 const root=document.getElementById('app');
 const cats=()=>[...new Set([...Object.keys(S.catSizes),...S.products.map(p=>p.cat)])];
 const img=p=>p&&p.img?{style:'background-image:url('+p.img+')'}:{};
 function ph(p){const e=h('div',Object.assign({class:'ph'},img(p)),p&&p.img?'':(p?p.code:'?'));if(p&&p.img&&p.id){e.style.cursor='zoom-in';e.onclick=ev=>{ev.stopPropagation();openZoom2(p)}}const n=p?photosOf(p).length:0;if(n>1)e.append(h('span',{class:'bd'},n+' photos'));return e}
-function render(){if(!ready){root.textContent='Loading…';return}document.getElementById('m2').style.display=(location.hash==='#staff'||staffOK)?'':'none';document.getElementById('bk').style.display=mode==='cust'&&C?'':'none';document.getElementById('bn').textContent=basket.length;root.replaceChildren(mode==='cust'?(C?(panel?mine():shop()):login()):staff())}
+function render(){if(!ready){root.textContent='Loading…';return}
+  if(C&&auth.currentUser&&!staffOK){const j=JSON.stringify(basket);if(j!==lastB){lastB=j;setDoc(doc(db,'customers',auth.currentUser.uid),{basket},{merge:true}).catch(()=>{})}}
+  document.getElementById('m2').style.display=(location.hash==='#staff'||staffOK)?'':'none';document.getElementById('bk').style.display=mode==='cust'&&C?'':'none';document.getElementById('bn').textContent=basket.length;root.replaceChildren(mode==='cust'?(C?(panel?mine():shop()):login()):staff())}
 document.getElementById('m1').onclick=()=>{mode='cust';panel=false;render()};
 document.getElementById('m2').onclick=()=>{mode='staff';render()};
 document.getElementById('bk').onclick=()=>{panel=!panel;done=null;render()};
@@ -155,13 +158,19 @@ function openZoom(p){
 }
 function login(){
   const n=h('input',{placeholder:'Your name or nickname'}),p=h('input',{placeholder:'Phone number',inputmode:'tel'});
-  return h('div',{class:'box'},h('h2',{},'Welcome'),h('p',{class:'mu'},'Enter your details to browse our full collection and pick the styles you want to see in the shop.'),h('p',{class:'mu',style:'font-size:12px'},'Your name and phone number are used only to prepare your selection at the shop.'),
+  return h('div',{class:'box'},h('h2',{},'Welcome'),h('p',{class:'mu'},'Enter your details to browse our full collection and pick the styles you want to see in the shop.'),h('p',{class:'mu',style:'font-size:12px'},'Your name and phone number are used only to prepare your selection at the shop. Next time, enter the same number to see your earlier selections and orders.'),
     h('label',{},'Name'),n,h('label',{},'Phone'),p,
-    h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{
-      const name=n.value.trim(),ph=p.value.replace(/\D/g,'');
-      if(!name||ph.length<8){alert('Please enter your name and a valid phone number');return}
-      const id='AC'+Math.floor(10000+Math.random()*90000);
-      C={id,name,phone:ph,time:Date.now()};setDoc(doc(db,'customers',auth.currentUser.uid),C).catch(()=>{});render()}},'Start browsing')));
+    h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{
+      const name=n.value.trim();let ph=p.value.replace(/\D/g,'');if(ph.length>10)ph=ph.slice(-10);
+      if(!name||ph.length<8){alert('Please enter your name and a valid mobile number');return}
+      const em='c'+ph+CE,pw='AC-'+ph+'-club';
+      try{
+        try{await signInWithEmailAndPassword(auth,em,pw)}catch(e){await createUserWithEmailAndPassword(auth,em,pw)}
+        const u=auth.currentUser,d=await getDoc(doc(db,'customers',u.uid));
+        if(d.exists())C=d.data();else{C={id:'AC'+Math.floor(10000+Math.random()*90000),name,phone:ph,time:Date.now()};await setDoc(doc(db,'customers',u.uid),C)}
+        basket=C.basket||[];lastB=JSON.stringify(basket);render();
+      }catch(e){alert('Could not log in: '+(e.code||e.message))}
+    }},'Start browsing')));
 }
 function shop(){
   if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+'. We will keep everything ready for you at the shop.'),h('button',{class:'btn',onclick:()=>{done=null;render()}},'Pick more styles'));
@@ -170,7 +179,7 @@ function shop(){
   const inB=(id,s)=>basket.some(b=>b.pid===id&&b.size===s);
   return h('div',{},
     editing?h('p',{class:'note'},'Editing request '+editing+': remove or add styles, then tap Review & send to update.'):'',
-    h('p',{class:'mu'},'Hi '+C.name+' ('+C.id+') · tap a size to add a style'),
+    h('p',{class:'mu'},'Hi '+C.name+' ('+C.id+') · tap a size to add a style · ',h('a',{href:'#',style:'color:inherit;text-decoration:underline',onclick:e=>{e.preventDefault();basket=[];lastB='[]';signOut(auth)}},'Not you? Log out')),
     h('input',{id:'sq',placeholder:'Search model code or name',value:q,oninput:e=>{q=e.target.value;render();const x=document.getElementById('sq');x.focus();x.setSelectionRange(q.length,q.length)}}),
     h('div',{class:'chips'},['All',...cats().filter(c=>S.products.some(p=>p.cat===c))].map(c=>h('button',{class:'chip'+(c===cat?' on':''),onclick:()=>{cat=c;size='All';render()}},c))),
     h('div',{class:'chips'},['All',...allSizes].map(s=>h('button',{class:'chip'+(s===size?' on':''),onclick:()=>{size=s;render()}},s==='All'?'All sizes':s))),
