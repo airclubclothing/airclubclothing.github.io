@@ -214,17 +214,18 @@ function review(){
 function staff(){
   if(!staffOK){const em=h('input',{type:'email',placeholder:'Staff email'}),pw=h('input',{type:'password',placeholder:'Password'});
     return h('div',{class:'box'},h('h2',{},'Staff login'),h('label',{},'Email'),em,h('label',{},'Password'),pw,h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{try{await signInWithEmailAndPassword(auth,em.value.trim(),pw.value)}catch(e){alert('Login failed: '+e.code)}}},'Open')))}
-  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='req'?' on':''),onclick:()=>{tab='req';render()}},'Requests ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='req'?reqs():tab==='cat'?catsView():tab==='set'?setView():tab==='cus'?cusView():prods());
+  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='req'?' on':''),onclick:()=>{tab='req';render()}},'Requests ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='done'?' on':''),onclick:()=>{tab='done';render()}},'Completed ('+S.requests.filter(r=>r.status==='Collected').length+')'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='req'?reqs(false):tab==='done'?reqs(true):tab==='cat'?catsView():tab==='set'?setView():tab==='cus'?cusView():prods());
 }
 function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t='Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
-function reqs(){
-  if(!S.requests.length)return h('p',{class:'mu'},'No requests yet.');
-  return h('div',{},S.requests.map(r=>h('div',{class:'box'},
+function reqs(dn){
+  const L=S.requests.filter(r=>(r.status==='Collected')===!!dn);
+  if(!L.length)return h('p',{class:'mu'},dn?'No completed orders yet.':'No active requests.');
+  return h('div',{},L.map(r=>h('div',{class:'box'},
     h('div',{class:'row',style:'justify-content:space-between'},h('b',{},r.cid+' · '+r.name+(r.edited?' · edited':'')),h('span',{class:'st'},r.status)),
     h('div',{class:'mu'},r.phone+' · '+new Date(r.time).toLocaleString()+' · '+r.items.length+' items'),
     r.note?h('div',{class:'note'},'Note: '+r.note):'',
     h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size,h('br'),i.loc||''))),
-    h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('div',{class:'row',style:'flex-wrap:wrap'},['New','Packing','Ready at shop','Collected'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;save();render()}},s))))));
+    h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;save();render()}},s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
 }
 function cusView(){
   const m=new Map();CU.forEach(c=>{if(c.phone&&!m.has(c.phone))m.set(c.phone,c)});const L=[...m.values()];
