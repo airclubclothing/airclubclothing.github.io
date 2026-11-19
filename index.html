@@ -188,7 +188,7 @@ function shop(){
     (S.cfg.phone||S.cfg.addr||S.cfg.timing)?h('div',{class:'box'},h('b',{},'Visit us'),S.cfg.addr?h('div',{class:'mu'},S.cfg.addr):'',S.cfg.timing?h('div',{class:'mu'},S.cfg.timing):'',S.cfg.phone?h('div',{class:'mu'},'Call: '+S.cfg.phone):''):'',
     h('div',{class:'bar'},h('span',{},basket.length+' selected'),h('button',{class:'btn',onclick:review},'Review & send')));
 }
-const STL={'New':'Sent to shop','Packing':'Being packed','Ready at shop':'Ready at shop','Collected':'Collected'};
+const STL={'New':'Sent to shop','Packing':'Being packed','Ready at shop':'Ready at shop','Delivering':'Out for delivery','Collected':'Collected'};
 function send(){
   const bs=basket.filter(b=>S.products.some(x=>x.id===b.pid));if(!bs.length){alert('Please pick at least one style');return}
   if(bs.some(b=>(S.products.find(x=>x.id===b.pid).out||[]).includes(b.size))){alert('Some selected sizes are sold out. Please remove them.');return}
@@ -205,12 +205,13 @@ function mine(){
     basket.length?basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{code:'?',name:'Removed model'};return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name||p.code),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size)),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);render()}},'Remove'))}):h('p',{class:'mu'},'Nothing selected. Go back to the shop and tap sizes to add styles.'),
     basket.length||editing?h('div',{class:'row'},editing?h('button',{class:'btn o s',onclick:()=>{editing=null;basket=[];render()}},'Cancel edit'):'',h('button',{class:'btn s',onclick:send},editing?'Update order':'Send to shop')):'');
   const orders=my.length?my.map(r=>{const can=!editing&&(r.status==='New'||r.status==='Packing');return h('div',{class:'box'},
-    h('div',{class:'row',style:'justify-content:space-between'},h('b',{},'Order '+r.id+(r.edited?' \u00b7 edited':'')),h('span',{class:'st'},STL[r.status]||r.status)),
+    h('div',{class:'row',style:'justify-content:space-between'},h('b',{},'Order '+r.id+(r.edited?' \u00b7 edited':'')),h('span',{class:'st'},(r.status==='Collected'&&r.shipped?'Delivered':(STL[r.status]||r.status)))),
     h('div',{class:'mu'},fmt(r.time)+(r.edited?' \u00b7 updated '+fmt(r.edited):'')),
     h('div',{class:'mu'},r.items.length+' styles'),
+    r.track?h('div',{class:'mu'},'Delivery info: '+r.track):'',
     r.note?h('div',{class:'note'},'Your note: '+r.note):'',
     r.items.map(i=>{const p=S.products.find(x=>x.id===i.pid);return h('div',{class:'row',style:'border-top:1px solid var(--bd);padding-top:8px'},h('div',{style:'width:56px;flex:none'},ph(p||{code:i.code,img:i.t})),h('div',{},h('b',{},i.name||i.code),h('div',{class:'mu'},i.code+' \u00b7 Size '+i.size+(S.cfg.showPrice&&(i.price||(p&&p.price))?' \u00b7 \u20b9'+(i.price||p.price):''))))}),
-    can?h('button',{class:'btn s',onclick:()=>{if(basket.length&&!confirm('Your unsent selections will be replaced. Continue?'))return;basket=r.items.filter(i=>S.products.some(p=>p.id===i.pid)).map(i=>({pid:i.pid,size:i.size}));editing=r.id;note=r.note||'';ptab=null;render()}},'Edit this order'):h('div',{class:'mu'},r.status==='Ready at shop'||r.status==='Collected'?'This order is ready, so it cannot be changed here.':''))}):h('p',{class:'mu'},'You have not sent any order yet.');
+    can?h('button',{class:'btn s',onclick:()=>{if(basket.length&&!confirm('Your unsent selections will be replaced. Continue?'))return;basket=r.items.filter(i=>S.products.some(p=>p.id===i.pid)).map(i=>({pid:i.pid,size:i.size}));editing=r.id;note=r.note||'';ptab=null;render()}},'Edit this order'):h('div',{class:'mu'},r.status==='Delivering'?'Your order is on the way, so it cannot be changed.':(r.status==='Ready at shop'||r.status==='Collected'?'This order is ready, so it cannot be changed here.':'')))}):h('p',{class:'mu'},'You have not sent any order yet.');
   return h('div',{},
     h('div',{class:'row',style:'justify-content:space-between'},h('h2',{style:'margin:0'},'My basket'),h('button',{class:'btn o s',onclick:()=>{panel=false;render()}},'\u2190 Back to shop')),
     editing?h('p',{class:'note'},'Editing order '+editing+'. Remove styles here, or go back to the shop to add new ones, then press Update order.'):'',
@@ -230,7 +231,7 @@ function staff(){
     return h('div',{class:'box'},h('h2',{},'Staff login'),h('label',{},'Email'),em,h('label',{},'Password'),pw,h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{try{await signInWithEmailAndPassword(auth,em.value.trim(),pw.value)}catch(e){alert('Login failed: '+e.code)}}},'Open')))}
   return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='req'?' on':''),onclick:()=>{tab='req';render()}},'Requests ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='done'?' on':''),onclick:()=>{tab='done';render()}},'Completed ('+S.requests.filter(r=>r.status==='Collected').length+')'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='req'?reqs(false):tab==='done'?reqs(true):tab==='cat'?catsView():tab==='set'?setView():tab==='cus'?cusView():prods());
 }
-function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t='Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
+function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t=r.status==='Delivering'?'Hi '+r.name+', your order ('+r.id+') from AIRCLUB CLOTHING is out for delivery.'+(r.track?' Delivery info: '+r.track+'.':''):'Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
 function reqs(dn){
   const L=S.requests.filter(r=>(r.status==='Collected')===!!dn);
   if(!L.length)return h('p',{class:'mu'},dn?'No completed orders yet.':'No active requests.');
@@ -239,7 +240,7 @@ function reqs(dn){
     h('div',{class:'mu'},r.phone+' · '+new Date(r.time).toLocaleString()+' · '+r.items.length+' items'),
     r.note?h('div',{class:'note'},'Note: '+r.note):'',
     h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size,h('br'),i.loc||''))),
-    h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;save();render()}},s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
+    h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
 }
 function cusView(){
   const m=new Map();CU.forEach(c=>{if(c.phone&&!m.has(c.phone))m.set(c.phone,c)});const L=[...m.values()];
