@@ -61,7 +61,7 @@ function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
 const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:''}};
-let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]';
+let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',ptab=null;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
 const clean=o=>JSON.parse(JSON.stringify(o));
@@ -101,7 +101,7 @@ function render(){if(!ready){root.textContent='Loading…';return}
   document.getElementById('m2').style.display=(location.hash==='#staff'||staffOK)?'':'none';document.getElementById('bk').style.display=mode==='cust'&&C?'':'none';document.getElementById('bn').textContent=basket.length;root.replaceChildren(mode==='cust'?(C?(panel?mine():shop()):login()):staff())}
 document.getElementById('m1').onclick=()=>{mode='cust';panel=false;render()};
 document.getElementById('m2').onclick=()=>{mode='staff';render()};
-document.getElementById('bk').onclick=()=>{panel=!panel;done=null;render()};
+document.getElementById('bk').onclick=()=>{panel=!panel;done=null;ptab=null;render()};
 
 const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('ac_img',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const idbPut=(k,b)=>idb().then(d=>new Promise(res=>{const t=d.transaction('f','readwrite');t.objectStore('f').put(b,k);t.oncomplete=res;t.onerror=res})).catch(()=>{});
@@ -173,7 +173,7 @@ function login(){
     }},'Start browsing')));
 }
 function shop(){
-  if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+'. We will keep everything ready for you at the shop.'),h('button',{class:'btn',onclick:()=>{done=null;render()}},'Pick more styles'));
+  if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+'. We will keep everything ready for you at the shop.'),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{done=null;panel=true;ptab='orders';render()}},'View your orders'),h('button',{class:'btn o',onclick:()=>{done=null;render()}},'Pick more styles')));
   const list=S.products.filter(p=>(cat==='All'||p.cat===cat)&&(size==='All'||p.sizes.includes(size))&&(!q||(p.code+' '+p.name).toLowerCase().includes(q.toLowerCase())));
   const ord=Object.values(S.catSizes).flat();const allSizes=[...new Set(S.products.filter(p=>cat==='All'||p.cat===cat).flatMap(p=>p.sizes))].sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
   const inB=(id,s)=>basket.some(b=>b.pid===id&&b.size===s);
@@ -192,25 +192,30 @@ const STL={'New':'Sent to shop','Packing':'Being packed','Ready at shop':'Ready 
 function send(){
   const bs=basket.filter(b=>S.products.some(x=>x.id===b.pid));if(!bs.length){alert('Please pick at least one style');return}
   if(bs.some(b=>(S.products.find(x=>x.id===b.pid).out||[]).includes(b.size))){alert('Some selected sizes are sold out. Please remove them.');return}
-  const items=bs.map(b=>{const p=S.products.find(x=>x.id===b.pid);return{pid:p.id,code:p.code,name:p.name,cat:p.cat,size:b.size,loc:p.loc}});
+  const items=bs.map(b=>{const p=S.products.find(x=>x.id===b.pid);return{pid:p.id,code:p.code,name:p.name,cat:p.cat,size:b.size,loc:p.loc,t:p.img||'',price:p.price||''}});
   if(editing){const r=S.requests.find(x=>x.id===editing);if(r){r.items=items;r.note=note.trim();r.edited=Date.now();r.status='New'}done=r;editing=null}
   else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:C.name,phone:C.phone,time:Date.now(),status:'New',items,note:note.trim()};S.requests.unshift(r);done=r}
   save();basket=[];note='';panel=false;render();
 }
 function mine(){
-  const my=S.requests.filter(r=>r.cid===C.id);
+  const my=S.requests.filter(r=>r.cid===C.id).sort((a,b)=>b.time-a.time);
+  const tn=editing?'basket':(ptab||(basket.length?'basket':(my.length?'orders':'basket')));
+  const fmt=t=>new Date(t).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})+', '+new Date(t).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});
+  const basketBox=h('div',{class:'box'},h('b',{},(editing?'Order being edited':'Not sent yet')+' ('+basket.length+')'),
+    basket.length?basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{code:'?',name:'Removed model'};return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name||p.code),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size)),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);render()}},'Remove'))}):h('p',{class:'mu'},'Nothing selected. Go back to the shop and tap sizes to add styles.'),
+    basket.length||editing?h('div',{class:'row'},editing?h('button',{class:'btn o s',onclick:()=>{editing=null;basket=[];render()}},'Cancel edit'):'',h('button',{class:'btn s',onclick:send},editing?'Update order':'Send to shop')):'');
+  const orders=my.length?my.map(r=>{const can=!editing&&(r.status==='New'||r.status==='Packing');return h('div',{class:'box'},
+    h('div',{class:'row',style:'justify-content:space-between'},h('b',{},'Order '+r.id+(r.edited?' \u00b7 edited':'')),h('span',{class:'st'},STL[r.status]||r.status)),
+    h('div',{class:'mu'},fmt(r.time)+(r.edited?' \u00b7 updated '+fmt(r.edited):'')),
+    h('div',{class:'mu'},r.items.length+' styles'),
+    r.note?h('div',{class:'note'},'Your note: '+r.note):'',
+    r.items.map(i=>{const p=S.products.find(x=>x.id===i.pid);return h('div',{class:'row',style:'border-top:1px solid var(--bd);padding-top:8px'},h('div',{style:'width:56px;flex:none'},ph(p||{code:i.code,img:i.t})),h('div',{},h('b',{},i.name||i.code),h('div',{class:'mu'},i.code+' \u00b7 Size '+i.size+(S.cfg.showPrice&&(i.price||(p&&p.price))?' \u00b7 \u20b9'+(i.price||p.price):''))))}),
+    can?h('button',{class:'btn s',onclick:()=>{if(basket.length&&!confirm('Your unsent selections will be replaced. Continue?'))return;basket=r.items.filter(i=>S.products.some(p=>p.id===i.pid)).map(i=>({pid:i.pid,size:i.size}));editing=r.id;note=r.note||'';ptab=null;render()}},'Edit this order'):h('div',{class:'mu'},r.status==='Ready at shop'||r.status==='Collected'?'This order is ready, so it cannot be changed here.':''))}):h('p',{class:'mu'},'You have not sent any order yet.');
   return h('div',{},
-    h('div',{class:'row',style:'justify-content:space-between'},h('h2',{style:'margin:0'},'My selections'),h('button',{class:'btn o s',onclick:()=>{panel=false;render()}},'← Back to shop')),
-    editing?h('p',{class:'note'},'Editing request '+editing+'. Remove styles here, or go back to the shop to add new ones, then press Update order.'):'',
-    h('div',{class:'box'},h('b',{},(editing?'Order being edited':'Not sent yet')+' ('+basket.length+')'),
-      basket.length?basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{code:'?',name:'Removed model'};return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name||p.code),h('div',{class:'mu'},p.code+' · Size '+b.size)),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);render()}},'Remove'))}):h('p',{class:'mu'},'Nothing selected. Go back to the shop and tap sizes to add styles.'),
-      basket.length||editing?h('div',{class:'row'},editing?h('button',{class:'btn o s',onclick:()=>{editing=null;basket=[];render()}},'Cancel edit'):'',h('button',{class:'btn s',onclick:send},editing?'Update order':'Send to shop')):''),
-    h('h3',{},'My requests'),
-    my.length?my.map(r=>{const can=!editing&&(r.status==='New'||r.status==='Packing');return h('div',{class:'box'},
-      h('div',{class:'row',style:'justify-content:space-between'},h('b',{},r.id+(r.edited?' · edited':'')),h('span',{class:'st'},STL[r.status]||r.status)),
-      h('div',{class:'mu'},new Date(r.time).toLocaleString()+' · '+r.items.length+' items'),
-      h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size))),
-      can?h('button',{class:'btn s',onclick:()=>{if(basket.length&&!confirm('Your unsent selections will be replaced. Continue?'))return;basket=r.items.filter(i=>S.products.some(p=>p.id===i.pid)).map(i=>({pid:i.pid,size:i.size}));editing=r.id;note=r.note||'';render()}},'Edit this order'):h('div',{class:'mu'},r.status==='Ready at shop'||r.status==='Collected'?'This order is ready, so it cannot be changed here.':''))}):h('p',{class:'mu'},'No requests sent yet.'));
+    h('div',{class:'row',style:'justify-content:space-between'},h('h2',{style:'margin:0'},'My basket'),h('button',{class:'btn o s',onclick:()=>{panel=false;render()}},'\u2190 Back to shop')),
+    editing?h('p',{class:'note'},'Editing order '+editing+'. Remove styles here, or go back to the shop to add new ones, then press Update order.'):'',
+    h('div',{class:'chips'},h('button',{class:'chip'+(tn==='basket'?' on':''),onclick:()=>{ptab='basket';render()}},'Basket ('+basket.length+')'),h('button',{class:'chip'+(tn==='orders'?' on':''),onclick:()=>{ptab='orders';render()}},'Your orders ('+my.length+')')),
+    tn==='basket'?basketBox:orders);
 }
 function review(){
   if(!basket.length){alert('Please pick at least one style');return}
