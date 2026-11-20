@@ -221,8 +221,9 @@ function review(){
   const nm=h('input',{placeholder:'Your name or nickname'}),pn=h('input',{placeholder:'Mobile number',inputmode:'tel'});
   const ov=h('div',{class:'box'},h('h2',{},'Your basket ('+basket.length+')'),
     basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid);return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name),h('div',{class:'mu'},p.code+' · Size '+b.size)),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);basket.length?review():render()}},'Remove'))}),
+    C?'':[h('label',{},'Your name'),nm,h('label',{},'Mobile number'),pn],
     h('label',{},'Note for the shop (optional)'),h('input',{placeholder:'e.g. need for a wedding, prefer dark colours',value:note,oninput:e=>{note=e.target.value}}),
-    C?'':[h('label',{},'Your name'),nm,h('label',{},'Mobile number'),pn,h('p',{class:'mu',style:'font-size:12px'},'Used only to prepare your selection at the shop. Next time, enter the same number to see your orders.')],
+    C?'':h('p',{class:'mu',style:'font-size:12px'},'Used only to prepare your selection at the shop. Next time, enter the same number to see your orders.'),
     h('div',{class:'row'},h('button',{class:'btn o',onclick:render},'Back'),h('button',{class:'btn',onclick:async()=>{if(!C){if(!nm.value.trim()||pn.value.replace(/\D/g,'').length<8){alert('Please enter your name and a valid mobile number');return}try{await identify(nm.value.trim(),pn.value,true)}catch(e){alert(e.message||e.code);return}}send()}},editing?'Update order':'Send to shop')));
   root.replaceChildren(ov);
 }
