@@ -46,6 +46,9 @@ input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10
 .zk{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;min-height:0;touch-action:pan-x pan-y}
 .sl{flex:0 0 100%;display:flex;overflow:auto;scroll-snap-align:center;touch-action:pan-x pan-y}
 .sz button.out{text-decoration:line-through;opacity:.45}a.btn{text-decoration:none;display:inline-block;margin:6px 0}
+#pa{display:none}.lb{box-sizing:border-box;padding:.1in;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;break-after:page;page-break-after:always;overflow:hidden}.lb:last-child{break-after:auto;page-break-after:auto}@media print{html,body{background:#fff!important;margin:0!important;padding:0!important}:root{padding:0!important}}
+.two{display:flex;gap:10px}.pick{flex:1;text-align:left;border:1px solid var(--bd);background:var(--card);border-radius:12px;padding:14px;color:var(--tx);cursor:pointer;font:inherit}.pick b{font-size:17px}
+.msg{white-space:pre-wrap;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;font-size:14px;margin:8px 0}
 </style>
 </head>
 <body>
@@ -60,8 +63,8 @@ const auth=getAuth(app),db=getFirestore(app);
 function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(k==='class')e.className=a[k];else if(k.slice(0,2)==='on')e[k]=a[k];else e.setAttribute(k,a[k])}c.flat(9).forEach(x=>e.append(x&&x.nodeType?x:document.createTextNode(x===false||x==null?'':x)));return e}
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
-const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:'',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
-let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',ptab=null,vr={k:'today'};
+const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
+let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
 const clean=o=>JSON.parse(JSON.stringify(o));
@@ -83,6 +86,7 @@ function startListeners(user){
   unsubs.push(onSnapshot(doc(db,'settings','main'),x=>{if(x.exists()){const d=x.data();if(d.catSizes)S.catSizes=d.catSizes;if(d.cfg)Object.assign(S.cfg,d.cfg);snap.set=JSON.stringify([S.catSizes,S.cfg])}re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(collection(db,'customers'),x=>{CU=x.docs.map(d=>d.data()).sort((a,b)=>(b.time||0)-(a.time||0));re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(query(collection(db,'visits'),where('date','>=',ymd(new Date(Date.now()-92*864e5)))),x=>{VI=x.docs.map(d=>d.data());re()},e=>console.log(e)));
+  if(staffOK)unsubs.push(onSnapshot(collection(db,'addresses'),x=>{AD=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>(b.time||0)-(a.time||0));re()},e=>console.log(e)));
   const rq=staffOK?collection(db,'requests'):query(collection(db,'requests'),where('uid','==',user.uid));
   unsubs.push(onSnapshot(rq,x=>{S.requests=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>b.time-a.time);snap.requests={};S.requests.forEach(r=>snap.requests[r.id]=JSON.stringify(r));re()},e=>console.log(e)));
 }
@@ -185,7 +189,7 @@ function shop(){
     list.length?h('div',{class:'grid'},list.map(p=>h('div',{class:'card'},ph(p),h('div',{class:'ci'},h('b',{},p.name),h('small',{},p.code+(S.cfg.showPrice&&p.price?' · ₹'+p.price:'')),
       h('div',{class:'sz'},p.sizes.filter(s=>size==='All'||s===size).map(s=>h('button',(p.out||[]).includes(s)?{class:'out',disabled:'disabled'}:{class:inB(p.id,s)?'on':'',onclick:()=>{const i=basket.findIndex(b=>b.pid===p.id&&b.size===s);i>=0?basket.splice(i,1):basket.push({pid:p.id,size:s});render()}},s))))))):h('p',{class:'mu'},'No styles here yet.'),
     (S.cfg.phone||S.cfg.addr||S.cfg.timing)?h('div',{class:'box'},h('b',{},'Visit us'),S.cfg.addr?h('div',{class:'mu'},S.cfg.addr):'',S.cfg.timing?h('div',{class:'mu'},S.cfg.timing):'',S.cfg.phone?h('div',{class:'mu'},'Call: '+S.cfg.phone):''):'',
-    h('div',{class:'bar'},h('span',{},basket.length+' selected'),h('button',{class:'btn',onclick:review},'Review & send')));
+    h('div',{class:'bar'},h('span',{},basket.length+' selected'),h('button',{class:'btn',onclick:()=>{rv='pick';review()}},'Review & send')));
 }
 const STL={'New':'Sent to shop','Packing':'Being packed','Ready at shop':'Ready at shop','Delivering':'Out for delivery','Collected':'Collected'};
 function send(){
@@ -202,7 +206,7 @@ function mine(){
   const fmt=t=>new Date(t).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})+', '+new Date(t).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});
   const basketBox=h('div',{class:'box'},h('b',{},(editing?'Order being edited':'Not sent yet')+' ('+basket.length+')'),
     basket.length?basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{code:'?',name:'Removed model'};return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name||p.code),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size)),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);render()}},'Remove'))}):h('p',{class:'mu'},'Nothing selected. Go back to the shop and tap sizes to add styles.'),
-    basket.length||editing?h('div',{class:'row'},editing?h('button',{class:'btn o s',onclick:()=>{editing=null;basket=[];render()}},'Cancel edit'):'',h('button',{class:'btn s',onclick:()=>C?send():review()},editing?'Update order':'Send to shop')):'');
+    basket.length||editing?h('div',{class:'row'},editing?h('button',{class:'btn o s',onclick:()=>{editing=null;basket=[];render()}},'Cancel edit'):'',h('button',{class:'btn s',onclick:()=>{if(editing)send();else{rv='pick';review()}}},editing?'Update order':'Send to shop')):'');
   const orders=my.length?my.map(r=>{const can=!editing&&(r.status==='New'||r.status==='Packing');return h('div',{class:'box'},
     h('div',{class:'row',style:'justify-content:space-between'},h('b',{},'Order '+r.id+(r.edited?' \u00b7 edited':'')),h('span',{class:'st'},(r.status==='Collected'&&r.shipped?'Delivered':(STL[r.status]||r.status)))),
     h('div',{class:'mu'},fmt(r.time)+(r.edited?' \u00b7 updated '+fmt(r.edited):'')),
@@ -217,21 +221,49 @@ function mine(){
     h('div',{class:'chips'},h('button',{class:'chip'+(tn==='basket'?' on':''),onclick:()=>{ptab='basket';render()}},'Basket ('+basket.length+')'),h('button',{class:'chip'+(tn==='orders'?' on':''),onclick:()=>{ptab='orders';render()}},'Your orders ('+my.length+')')),
     tn==='basket'?basketBox:orders);
 }
+let rv='pick';
+function onlineMsg(){
+  const L=basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{};return (i+1)+'. '+(p.name||'')+' ('+(p.code||'')+') - Size '+b.size+(S.cfg.showPrice&&p.price?' - \u20b9'+p.price:'')});
+  return 'Hi AIRCLUB CLOTHING, I would like to order these styles:\n'+L.join('\n')+'\nTotal: '+basket.length+' items'+(note.trim()?'\nNote: '+note.trim():'')+'\nPlease confirm availability and delivery details.';
+}
 function review(){
   if(!basket.length){alert('Please pick at least one style');return}
+  const view=editing?'shop':rv;
   const nm=h('input',{placeholder:'Your name or nickname'}),pn=h('input',{placeholder:'Mobile number',inputmode:'tel'});
-  const ov=h('div',{class:'box'},h('h2',{},'Your basket ('+basket.length+')'),
-    basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid);return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name),h('div',{class:'mu'},p.code+' · Size '+b.size)),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);basket.length?review():render()}},'Remove'))}),
-    C?'':[h('label',{},'Your name'),nm,h('label',{},'Mobile number'),pn],
-    h('label',{},'Note for the shop (optional)'),h('input',{placeholder:'e.g. need for a wedding, prefer dark colours',value:note,oninput:e=>{note=e.target.value}}),
-    C?'':h('p',{class:'mu',style:'font-size:12px'},'Used only to prepare your selection at the shop. Next time, enter the same number to see your orders.'),
-    h('div',{class:'row'},h('button',{class:'btn o',onclick:render},'Back'),h('button',{class:'btn',onclick:async()=>{if(!C){if(!nm.value.trim()||pn.value.replace(/\D/g,'').length<8){alert('Please enter your name and a valid mobile number');return}try{await identify(nm.value.trim(),pn.value,true)}catch(e){alert(e.message||e.code);return}}send()}},editing?'Update order':'Send to shop')));
+  const items=basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid);return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size)),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);basket.length?review():render()}},'Remove'))});
+  const noteBox=(after)=>[h('label',{},'Note (optional)'),h('input',{placeholder:'e.g. need for a wedding, prefer dark colours',value:note,oninput:e=>{note=e.target.value;if(after)after()}})];
+  let body;
+  if(view==='pick'){
+    body=[h('h3',{style:'margin:16px 0 4px'},'How will you order?'),h('p',{class:'mu',style:'margin:0 0 10px'},'Choose one'),
+      h('div',{class:'two'},
+        h('button',{class:'pick',onclick:()=>{rv='shop';review()}},h('b',{},'Shop customer'),h('div',{class:'mu'},'I will visit the shop. Keep these ready for me.')),
+        h('button',{class:'pick',onclick:()=>{rv='online';review()}},h('b',{},'Online customer'),h('div',{class:'mu'},'I will order through WhatsApp or Instagram.'))),
+      h('div',{class:'row'},h('button',{class:'btn o',onclick:render},'Back'))];
+  }else if(view==='shop'){
+    body=[h('h3',{style:'margin:16px 0 0'},editing?'Edit your order':'Shop customer'),
+      C?'':[h('label',{},'Your name'),nm,h('label',{},'Mobile number'),pn],
+      noteBox(),
+      C?'':h('p',{class:'mu',style:'font-size:12px'},'Used only to prepare your selection at the shop. Next time, enter the same number to see your orders.'),
+      h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{if(editing)render();else{rv='pick';review()}}},'Back'),h('button',{class:'btn',onclick:async()=>{if(!C){if(!nm.value.trim()||pn.value.replace(/\D/g,'').length<8){alert('Please enter your name and a valid mobile number');return}try{await identify(nm.value.trim(),pn.value,true)}catch(e){alert(e.message||e.code);return}}send()}},editing?'Update order':'Send to shop'))];
+  }else{
+    const prev=h('div',{class:'msg'},onlineMsg()),st=h('p',{class:'mu',style:'font-size:13px'},'');
+    const open=u=>{const w=window.open(u,'_blank');if(!w)location.href=u};
+    const waN=()=>{let n=String(S.cfg.wa||S.cfg.phone||'').replace(/\D/g,'');if(n.length===10)n='91'+n;return n};
+    body=[h('h3',{style:'margin:16px 0 0'},'Online customer'),h('p',{class:'mu',style:'margin:2px 0 0'},'Your message is ready. Send it to us on WhatsApp or Instagram and we will confirm your order.'),
+      noteBox(()=>{prev.textContent=onlineMsg()}),prev,
+      h('div',{class:'row',style:'flex-wrap:wrap'},
+        h('button',{class:'btn',onclick:()=>{const n=waN();if(!n){alert('Shop WhatsApp number is not set yet. Please try Instagram.');return}open('https://wa.me/'+n+'?text='+encodeURIComponent(onlineMsg()))}},'Send on WhatsApp'),
+        h('button',{class:'btn',onclick:()=>{const u=(S.cfg.ig||'airclub.clothing').replace(/^@/,'');try{navigator.clipboard.writeText(onlineMsg())}catch(e){}st.textContent='Message copied. Paste it in the Instagram chat and tap send.';open('https://ig.me/m/'+u)}},'Send on Instagram')),
+      st,
+      h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{rv='pick';review()}},'Back'))];
+  }
+  const ov=h('div',{class:'box'},h('h2',{},'Your basket ('+basket.length+')'),items,body);
   root.replaceChildren(ov);
 }
 function staff(){
   if(!staffOK){const em=h('input',{type:'email',placeholder:'Staff email'}),pw=h('input',{type:'password',placeholder:'Password'});
     return h('div',{class:'box'},h('h2',{},'Staff login'),h('label',{},'Email'),em,h('label',{},'Password'),pw,h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{try{await signInWithEmailAndPassword(auth,em.value.trim(),pw.value)}catch(e){alert('Login failed: '+e.code)}}},'Open')))}
-  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='req'?' on':''),onclick:()=>{tab='req';render()}},'Requests ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='done'?' on':''),onclick:()=>{tab='done';render()}},'Completed ('+S.requests.filter(r=>r.status==='Collected').length+')'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='req'?reqs(false):tab==='done'?reqs(true):tab==='cat'?catsView():tab==='set'?setView():tab==='cus'?cusView():prods());
+  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='req'?' on':''),onclick:()=>{tab='req';render()}},'Requests ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='done'?' on':''),onclick:()=>{tab='done';render()}},'Completed ('+S.requests.filter(r=>r.status==='Collected').length+')'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='req'?reqs(false):tab==='done'?reqs(true):tab==='cat'?catsView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
 }
 function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t=r.status==='Delivering'?'Hi '+r.name+', your order ('+r.id+') from AIRCLUB CLOTHING is out for delivery.'+(r.track?' Delivery info: '+r.track+'.':''):'Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
 function reqs(dn){
@@ -269,7 +301,48 @@ function cusView(){
 function setView(){
   const f=(k,l,pl)=>[h('label',{},l),h('input',{value:S.cfg[k]||'',placeholder:pl,onchange:e=>{S.cfg[k]=e.target.value.trim();save()}})];
   const pc=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{S.cfg.showPrice=e.target.checked;save()}});pc.checked=!!S.cfg.showPrice;
-  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),h('label',{},'Show prices to customers'),pc,h('p',{class:'mu'},'Changes save automatically.'));
+  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),f('wa','Shop WhatsApp number for online orders (with country code)','e.g. 919876543210'),f('ig','Instagram username for online orders (without @)','airclub.clothing'),h('label',{},'Show prices to customers'),pc,h('p',{class:'mu'},'Changes save automatically.'));
+}
+function addrLines(a){return [a.house,a.street,a.landmark?'Near '+a.landmark:'',[a.city,a.district&&a.district!==a.city?a.district:''].filter(Boolean).join(', '),a.state].filter(Boolean)}
+function labelEl(a){const big=addrLines(a).join(' ').length>120;return h('div',{class:'lb'},h('div',{style:'display:flex;flex-direction:column;height:100%;border:2px solid #000;padding:.14in'},
+  h('div',{style:'font-size:9pt;font-weight:700;letter-spacing:.12em'},'DELIVER TO'),
+  h('div',{style:'font-size:21pt;font-weight:800;line-height:1.1;margin:.04in 0'},a.name),
+  h('div',{style:'font-size:'+(big?'12':'15')+'pt;line-height:1.25;flex:1;overflow:hidden'},addrLines(a).map(l=>h('div',{},l))),
+  h('div',{style:'font-size:24pt;font-weight:800;margin-top:.04in'},'PIN: '+a.pin),
+  h('div',{style:'font-size:15pt;font-weight:700'},'Ph: '+a.phone+(a.phone2?' / '+a.phone2:'')),
+  h('div',{style:'border-top:1.5px dashed #000;margin-top:.06in;padding-top:.05in;font-size:9pt'},'FROM: AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+(S.cfg.phone?' | Ph: '+S.cfg.phone:''))))}
+function printLabels(list){
+  const w=lbl==='6x4'?6:4,hh=lbl==='6x4'?4:6;
+  let st=document.getElementById('pgs');if(!st){st=document.createElement('style');st.id='pgs';document.head.append(st)}
+  st.textContent='@page{size:'+w+'in '+hh+'in;margin:0}@media print{body>*:not(#pa){display:none!important}#pa{display:block!important}.lb{width:'+w+'in;height:'+hh+'in}}';
+  let pa=document.getElementById('pa');if(!pa){pa=document.createElement('div');pa.id='pa';document.body.append(pa)}
+  pa.replaceChildren(...list.map(labelEl));
+  window.addEventListener('afterprint',()=>{setTimeout(()=>{if(confirm('Mark '+list.length+' label(s) as printed?'))list.forEach(a=>{a.printed=true;setDoc(doc(db,'addresses',a.id),clean(a))})},300)},{once:true});
+  setTimeout(()=>window.print(),150);
+}
+function addrView(){
+  const url=location.origin+'/address.html',t=adQ.trim().toLowerCase();
+  const L=AD.filter(a=>(adF==='all'||(adF==='new'?!a.printed:!!a.printed))&&(!t||[a.name,a.phone,a.pin,a.city,a.ref].join(' ').toLowerCase().includes(t)));
+  const selL=AD.filter(a=>adSel.has(a.id));
+  const saveA=a=>setDoc(doc(db,'addresses',a.id),clean(a)).catch(e=>alert('Could not save: '+e.code));
+  const F=[['name','Name'],['phone','Mobile'],['phone2','Alternate mobile'],['house','House / flat / building'],['street','Street / area'],['landmark','Landmark'],['city','City / town'],['district','District'],['state','State'],['pin','PIN code'],['ref','Reference']];
+  const editCard=a=>{const ins={};return h('div',{class:'box'},F.map(([k,l])=>[h('label',{},l),(ins[k]=h('input',{value:a[k]||''}))]),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{F.forEach(([k])=>a[k]=ins[k].value.trim());adEdit=null;saveA(a);render()}},'Save'),h('button',{class:'btn s o',onclick:()=>{adEdit=null;render()}},'Cancel')))};
+  const card=a=>h('div',{class:'box'},
+    h('div',{class:'row',style:'justify-content:space-between'},h('label',{style:'display:flex;gap:8px;align-items:center;margin:0;color:inherit'},(()=>{const c=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{e.target.checked?adSel.add(a.id):adSel.delete(a.id);render()}});c.checked=adSel.has(a.id);return c})(),h('b',{},a.name)),h('span',{class:'st'},a.printed?'Printed':'Not printed')),
+    h('div',{class:'mu'},a.phone+(a.phone2?' / '+a.phone2:'')+(a.time?' \u00b7 '+new Date(a.time).toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'')),
+    h('div',{},addrLines(a).join(', ')+' - '+a.pin),
+    a.ref?h('div',{class:'mu'},'Ref: '+a.ref):'',
+    h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn s',onclick:()=>printLabels([a])},'Print label'),h('button',{class:'btn s o',onclick:()=>{a.printed=!a.printed;saveA(a)}},a.printed?'Mark not printed':'Mark printed'),h('button',{class:'btn s o',onclick:()=>{adEdit=a.id;render()}},'Edit'),h('button',{class:'btn s o',onclick:()=>{if(confirm('Delete this address?')){adSel.delete(a.id);deleteDoc(doc(db,'addresses',a.id))}}},'Delete')));
+  const csvA=()=>{const K=['name','phone','phone2','house','street','landmark','city','district','state','pin','ref'];const rows=[K.concat(['date','printed'])].concat(AD.map(a=>K.map(k=>a[k]||'').concat([a.time?ymd(new Date(a.time)):'',a.printed?'yes':'no'])));const tx=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+tx],{type:'text/csv'}));l.download='airclub-addresses.csv';document.body.append(l);l.click();l.remove()};
+  return h('div',{},
+    h('div',{class:'box'},h('b',{},'Customer address form link'),h('div',{class:'mu',style:'word-break:break-all;margin:4px 0'},url),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{navigator.clipboard.writeText(url).then(()=>alert('Link copied'),()=>alert(url))}},'Copy link'),h('a',{class:'btn s o',href:url,target:'_blank',rel:'noopener'},'Open'))),
+    h('div',{class:'chips'},[['all','All'],['new','Not printed'],['done','Printed']].map(([k,l])=>h('button',{class:'chip'+(adF===k?' on':''),onclick:()=>{adF=k;render()}},l))),
+    h('input',{id:'aq',placeholder:'Search name, phone, PIN',value:adQ,oninput:e=>{adQ=e.target.value;render();const x=document.getElementById('aq');x.focus();x.setSelectionRange(adQ.length,adQ.length)}}),
+    h('div',{class:'row',style:'flex-wrap:wrap;margin-top:10px'},
+      h('button',{class:'btn s'+(lbl==='6x4'?'':' o'),onclick:()=>{lbl='6x4';render()}},'Label 6x4 in'),h('button',{class:'btn s'+(lbl==='4x6'?'':' o'),onclick:()=>{lbl='4x6';render()}},'Label 4x6 in'),
+      h('button',{class:'btn s o',onclick:()=>{AD.filter(a=>!a.printed).forEach(a=>adSel.add(a.id));render()}},'Select all not printed'),h('button',{class:'btn s o',onclick:()=>{adSel.clear();render()}},'Clear'),
+      h('button',{class:'btn s',onclick:()=>{if(!selL.length){alert('Select at least one address');return}printLabels(selL)}},'Print selected ('+selL.length+')'),h('button',{class:'btn s o',onclick:csvA},'Download CSV')),
+    L.length?L.map(a=>adEdit===a.id?editCard(a):card(a)):h('p',{class:'mu'},'No addresses yet.'));
 }
 function parseSizes(t){const out=[];t.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>{const m=s.match(/^(\d+)\s*-\s*(\d+)(?:\s*\/\s*(\d+))?$/);if(m){const a=+m[1],b=+m[2],st=+(m[3]||1);for(let v=a;v<=b;v+=st)out.push(String(v))}else out.push(s)});return [...new Set(out)]}
 function procImg(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const sc=m=>{const k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c};const th=sc(700).toDataURL('image/jpeg',.8);sc(3000).toBlob(b=>cb(th,b),'image/jpeg',.92)};im.src=r.result};r.readAsDataURL(f)}
