@@ -60,7 +60,7 @@ const auth=getAuth(app),db=getFirestore(app);
 function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(k==='class')e.className=a[k];else if(k.slice(0,2)==='on')e[k]=a[k];else e.setAttribute(k,a[k])}c.flat(9).forEach(x=>e.append(x&&x.nodeType?x:document.createTextNode(x===false||x==null?'':x)));return e}
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
-const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:''}};
+const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:'',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
 let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',ptab=null,vr={k:'today'};
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
@@ -176,6 +176,7 @@ function shop(){
   const ord=Object.values(S.catSizes).flat();const allSizes=[...new Set(S.products.filter(p=>cat==='All'||p.cat===cat).flatMap(p=>p.sizes))].sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
   const inB=(id,s)=>basket.some(b=>b.pid===id&&b.size===s);
   return h('div',{},
+    (S.cfg.offers||'').trim()?h('div',{class:'box',style:'border-color:var(--ac)'},h('b',{},S.cfg.offerTitle||'Offers'),(S.cfg.offers||'').split('\n').filter(l=>l.trim()).map(l=>h('div',{style:'margin-top:4px'},l.trim()))):'',
     editing?h('p',{class:'note'},'Editing request '+editing+': remove or add styles, then tap Review & send to update.'):'',
     h('p',{class:'mu'},(C?'Hi '+C.name+' ('+C.id+') · ':'')+'tap a size to add a style',C?[' · ',h('a',{href:'#',style:'color:inherit;text-decoration:underline',onclick:e=>{e.preventDefault();basket=[];lastB='[]';C=null;signOut(auth)}},'Not you? Log out')]:''),
     h('input',{id:'sq',placeholder:'Search model code or name',value:q,oninput:e=>{q=e.target.value;render();const x=document.getElementById('sq');x.focus();x.setSelectionRange(q.length,q.length)}}),
@@ -268,7 +269,7 @@ function cusView(){
 function setView(){
   const f=(k,l,pl)=>[h('label',{},l),h('input',{value:S.cfg[k]||'',placeholder:pl,onchange:e=>{S.cfg[k]=e.target.value.trim();save()}})];
   const pc=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{S.cfg.showPrice=e.target.checked;save()}});pc.checked=!!S.cfg.showPrice;
-  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),h('label',{},'Show prices to customers'),pc,h('p',{class:'mu'},'Changes save automatically.'));
+  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),h('label',{},'Show prices to customers'),pc,h('p',{class:'mu'},'Changes save automatically.'));
 }
 function parseSizes(t){const out=[];t.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>{const m=s.match(/^(\d+)\s*-\s*(\d+)(?:\s*\/\s*(\d+))?$/);if(m){const a=+m[1],b=+m[2],st=+(m[3]||1);for(let v=a;v<=b;v+=st)out.push(String(v))}else out.push(s)});return [...new Set(out)]}
 function procImg(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const sc=m=>{const k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c};const th=sc(700).toDataURL('image/jpeg',.8);sc(3000).toBlob(b=>cb(th,b),'image/jpeg',.92)};im.src=r.result};r.readAsDataURL(f)}
