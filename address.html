@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Airclub Clothing – Delivery Address</title>
+<style>
+:root{box-sizing:border-box;--bg:#faf8f5;--card:#fff;--tx:#1c1b19;--mu:#6b675f;--ac:#0f6b5c;--acx:#fff;--bd:#e4dfd6;--wn:#b4461f;
+padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#151513;--card:#1f1e1b;--tx:#f1eee8;--mu:#a29d93;--ac:#3fb59f;--acx:#0b1613;--bd:#34322d;--wn:#ee8a63}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:14px 16px;border-bottom:1px solid var(--bd);background:var(--bg)}
+h1{font-size:15px;margin:0;letter-spacing:.14em;font-weight:600}
+main{max-width:520px;margin:0 auto;padding:16px}
+h2{margin:4px 0 4px;font-size:22px}
+.mu{color:var(--mu);font-size:14px}
+.box{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-top:14px}
+label{display:block;font-size:14px;margin-top:14px;font-weight:600}
+label small{font-weight:400;color:var(--mu)}
+input{font:inherit;color:inherit;width:100%;padding:12px;margin-top:6px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}
+input::placeholder{color:var(--mu);opacity:.75}
+input:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+input.bad{border-color:var(--wn)}
+.err{color:var(--wn);font-size:13px;margin-top:4px;min-height:0}
+.btn{width:100%;margin-top:20px;background:var(--ac);color:var(--acx);border:0;border-radius:10px;padding:14px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:default}
+.top{color:var(--wn);font-size:14px;margin-top:12px}
+</style>
+</head>
+<body>
+<header><h1>AIRCLUB CLOTHING</h1></header>
+<main id="app">
+  <h2>Delivery address</h2>
+  <p class="mu">Please fill your details so we can send your parcel. Fields marked * are needed.</p>
+  <form id="f" class="box" novalidate>
+    <label>Name *<input id="name" autocomplete="name" placeholder="e.g. Nikhil"></label>
+    <div class="err" data-for="name"></div>
+
+    <label>House name or no. *<input id="house" autocomplete="address-line1" placeholder="e.g. Rose Villa / 12/345"></label>
+    <div class="err" data-for="house"></div>
+
+    <label>Street *<input id="street" autocomplete="address-line2" placeholder="e.g. MG Road"></label>
+    <div class="err" data-for="street"></div>
+
+    <label>Landmark *<input id="landmark" placeholder="e.g. Near bus stand, opposite SBI bank"></label>
+    <div class="err" data-for="landmark"></div>
+
+    <label>City *<input id="city" autocomplete="address-level2" placeholder="e.g. Kochi"></label>
+    <div class="err" data-for="city"></div>
+
+    <label>District *<input id="district" placeholder="e.g. Ernakulam"></label>
+    <div class="err" data-for="district"></div>
+
+    <label>State *<input id="state" autocomplete="address-level1" placeholder="e.g. Kerala"></label>
+    <div class="err" data-for="state"></div>
+
+    <label>Pin code *<input id="pin" inputmode="numeric" maxlength="6" autocomplete="postal-code" placeholder="e.g. 682016"></label>
+    <div class="err" data-for="pin"></div>
+
+    <label>Mobile number 1 *<input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="e.g. 9876543210"></label>
+    <div class="err" data-for="phone"></div>
+
+    <label>Mobile number 2 <small>(optional)</small><input id="phone2" type="tel" inputmode="tel" placeholder="e.g. 9123456780"></label>
+    <div class="err" data-for="phone2"></div>
+
+    <div class="top" id="top"></div>
+    <button class="btn" id="go" type="submit">Send address</button>
+  </form>
+</main>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import {getAuth,signInAnonymously} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import {getFirestore,doc,setDoc} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+const app=initializeApp({apiKey:"AIzaSyBnPaZfzEoDpquuMPDF62GbFxvv3CIfjpA",authDomain:"airclub-clothing.firebaseapp.com",projectId:"airclub-clothing",storageBucket:"airclub-clothing.firebasestorage.app",messagingSenderId:"361635228417",appId:"1:361635228417:web:e163a7316942ceeb500900"});
+const auth=getAuth(app),db=getFirestore(app);
+
+const $=id=>document.getElementById(id);
+const digits=v=>String(v).replace(/\D/g,'');
+const mobile=v=>{let d=digits(v);if(d.length>10)d=d.slice(-10);return d};
+
+function setErr(id,msg){
+  const e=document.querySelector('[data-for="'+id+'"]');
+  if(e)e.textContent=msg||'';
+  $(id).classList.toggle('bad',!!msg);
+}
+
+function check(){
+  let ok=true;
+  const need=[['name','Please enter your name'],['house','Please enter your house name or no.'],['street','Please enter your street'],['landmark','Please enter a landmark near your house'],['city','Please enter your city'],['district','Please enter your district'],['state','Please enter your state']];
+  need.forEach(([k,m])=>{const bad=!$(k).value.trim();setErr(k,bad?m:'');if(bad)ok=false});
+  const pin=digits($('pin').value);
+  if(pin.length!==6){setErr('pin','Pin code must be 6 digits');ok=false}else setErr('pin','');
+  const p1=mobile($('phone').value);
+  if(p1.length!==10){setErr('phone','Please enter a 10 digit mobile number');ok=false}else setErr('phone','');
+  const raw2=$('phone2').value.trim();
+  if(raw2&&mobile(raw2).length!==10){setErr('phone2','Enter a 10 digit number, or leave this empty');ok=false}else setErr('phone2','');
+  return ok;
+}
+
+$('f').addEventListener('submit',async e=>{
+  e.preventDefault();
+  $('top').textContent='';
+  if(!check()){$('top').textContent='Please correct the fields marked in red.';const b=document.querySelector('.bad');if(b)b.focus();return}
+  const btn=$('go');btn.disabled=true;btn.textContent='Sending…';
+  try{
+    if(!auth.currentUser)await signInAnonymously(auth);
+    const id='a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    const a={
+      id,
+      name:$('name').value.trim(),
+      phone:mobile($('phone').value),
+      phone2:$('phone2').value.trim()?mobile($('phone2').value):'',
+      house:$('house').value.trim(),
+      street:$('street').value.trim(),
+      landmark:$('landmark').value.trim(),
+      city:$('city').value.trim(),
+      district:$('district').value.trim(),
+      state:$('state').value.trim(),
+      pin:digits($('pin').value),
+      ref:'',
+      time:Date.now(),
+      printed:false
+    };
+    await setDoc(doc(db,'addresses',id),a);
+    document.getElementById('app').innerHTML='<div class="box"><h2>Thank you, '+a.name.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))+'!</h2><p>We have received your address. We will send your parcel soon.</p></div>';
+    window.scrollTo(0,0);
+  }catch(err){
+    btn.disabled=false;btn.textContent='Send address';
+    $('top').textContent='Could not send. Please check your internet and try again. ('+(err.code||err.message)+')';
+  }
+});
+</script>
+</body>
+</html>
