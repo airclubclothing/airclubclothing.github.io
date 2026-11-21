@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Airclub Clothing – Pick Your Styles</title>
 <style>
-:root{box-sizing:border-box;--bg:#faf8f5;--card:#fff;--tx:#1c1b19;--mu:#6b675f;--ac:#0f6b5c;--acx:#fff;--bd:#e4dfd6;--wn:#b4461f;
+:root{box-sizing:border-box;--bg:#faf8f5;--card:#fff;--tx:#1c1b19;--mu:#6b675f;--ac:#0f6b5c;--acx:#fff;--bd:#e4dfd6;--wn:#b4461f;--pr:#e8590c;--bp:#0b7a66;
 padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#151513;--card:#1f1e1b;--tx:#f1eee8;--mu:#a29d93;--ac:#3fb59f;--acx:#0b1613;--bd:#34322d;--wn:#ee8a63}}
-:root[data-theme="dark"]{color-scheme:dark;--bg:#151513;--card:#1f1e1b;--tx:#f1eee8;--mu:#a29d93;--ac:#3fb59f;--acx:#0b1613;--bd:#34322d;--wn:#ee8a63}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#151513;--card:#1f1e1b;--tx:#f1eee8;--mu:#a29d93;--ac:#3fb59f;--acx:#0b1613;--bd:#34322d;--wn:#ee8a63;--pr:#ffd23f;--bp:#4de8c3}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#151513;--card:#1f1e1b;--tx:#f1eee8;--mu:#a29d93;--ac:#3fb59f;--acx:#0b1613;--bd:#34322d;--wn:#ee8a63;--pr:#ffd23f}
 *{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:84px}
 header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--bd);position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
@@ -340,7 +340,12 @@ function qtyCtl(b,after){
 function barLeft(){
   if(!basket.length)return h('span',{},'0 selected');
   const cur=basket.find(b=>lastSel&&b.pid===lastSel.pid&&b.size===lastSel.size)||basket[basket.length-1],p=S.products.find(x=>x.id===cur.pid)||{code:'?'};
-  return h('div',{},h('div',{class:'mu',style:'font-size:12px;margin-bottom:4px'},p.code+' \u00b7 '+cur.size+' \u00b7 '+bc()+' selected'),qtyCtl(cur));
+  return h('div',{},h('div',{class:'mu',style:'font-size:12px;margin-bottom:4px'},p.code+' \u00b7 '+cur.size+' \u00b7 '+bc()+' selected'),h('div',{style:'display:flex;align-items:center;gap:10px'},qtyCtl(cur),barPrice()));
+}
+function barPrice(){
+  if(!S.cfg.showPrice||!basket.length)return h('span',{});
+  const b=calc(bl());if(!(b.total>0))return h('span',{});
+  return h('div',{style:'line-height:1.15;white-space:nowrap'},h('div',{style:'font-size:22px;font-weight:800;color:var(--bp)'},'\u20b9'+b.total),b.disc>0?h('div',{style:'font-size:11px;font-weight:600;color:var(--bp)'},h('s',{style:'font-weight:400;color:var(--mu);margin-right:4px'},'\u20b9'+b.mrp),'Save \u20b9'+b.disc):'');
 }
 let rv='pick';
 let adr={},adrStep='form';
