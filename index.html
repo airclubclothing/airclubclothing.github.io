@@ -63,7 +63,7 @@ const auth=getAuth(app),db=getFirestore(app);
 function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(k==='class')e.className=a[k];else if(k.slice(0,2)==='on')e[k]=a[k];else e.setAttribute(k,a[k])}c.flat(9).forEach(x=>e.append(x&&x.nodeType?x:document.createTextNode(x===false||x==null?'':x)));return e}
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
-const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
+const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
 let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
@@ -229,6 +229,9 @@ function onlineMsg(){
 function review(){
   if(!basket.length){alert('Please pick at least one style');return}
   const view=editing?'shop':rv;
+  const waOn=!!S.cfg.waOn,igOn=!!S.cfg.igOn;
+  const open=u=>{const w=window.open(u,'_blank');if(!w)location.href=u};
+  const waN=()=>{let n=String(S.cfg.wa||S.cfg.phone||'').replace(/\D/g,'');if(n.length===10)n='91'+n;return n};
   const nm=h('input',{placeholder:'Your name or nickname'}),pn=h('input',{placeholder:'Mobile number',inputmode:'tel'});
   const items=basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid);return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size)),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);basket.length?review():render()}},'Remove'))});
   const noteBox=(after)=>[h('label',{},'Note (optional)'),h('input',{placeholder:'e.g. need for a wedding, prefer dark colours',value:note,oninput:e=>{note=e.target.value;if(after)after()}})];
@@ -237,7 +240,7 @@ function review(){
     body=[h('h3',{style:'margin:16px 0 4px'},'How will you order?'),h('p',{class:'mu',style:'margin:0 0 10px'},'Choose one'),
       h('div',{class:'two'},
         h('button',{class:'pick',onclick:()=>{rv='shop';review()}},h('b',{},'Shop customer'),h('div',{class:'mu'},'I will visit the shop. Keep these ready for me.')),
-        h('button',{class:'pick',onclick:()=>{rv='online';review()}},h('b',{},'Online customer'),h('div',{class:'mu'},'I will order through WhatsApp or Instagram.'))),
+        (waOn||igOn)?h('button',{class:'pick',onclick:()=>{if(waOn&&!igOn){const n=waN();if(!n){alert('Shop WhatsApp number is not set yet.');return}open('https://wa.me/'+n+'?text='+encodeURIComponent(onlineMsg()))}else{rv='online';review()}}},h('b',{},'Online customer'),h('div',{class:'mu'},waOn&&!igOn?'I will order on WhatsApp.':(igOn&&!waOn?'I will order on Instagram.':'I will order through WhatsApp or Instagram.'))):''),
       h('div',{class:'row'},h('button',{class:'btn o',onclick:render},'Back'))];
   }else if(view==='shop'){
     body=[h('h3',{style:'margin:16px 0 0'},editing?'Edit your order':'Shop customer'),
@@ -247,13 +250,11 @@ function review(){
       h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{if(editing)render();else{rv='pick';review()}}},'Back'),h('button',{class:'btn',onclick:async()=>{if(!C){if(!nm.value.trim()||pn.value.replace(/\D/g,'').length<8){alert('Please enter your name and a valid mobile number');return}try{await identify(nm.value.trim(),pn.value,true)}catch(e){alert(e.message||e.code);return}}send()}},editing?'Update order':'Send to shop'))];
   }else{
     const prev=h('div',{class:'msg'},onlineMsg()),st=h('p',{class:'mu',style:'font-size:13px'},'');
-    const open=u=>{const w=window.open(u,'_blank');if(!w)location.href=u};
-    const waN=()=>{let n=String(S.cfg.wa||S.cfg.phone||'').replace(/\D/g,'');if(n.length===10)n='91'+n;return n};
     body=[h('h3',{style:'margin:16px 0 0'},'Online customer'),h('p',{class:'mu',style:'margin:2px 0 0'},'Your message is ready. Send it to us on WhatsApp or Instagram and we will confirm your order.'),
       noteBox(()=>{prev.textContent=onlineMsg()}),prev,
       h('div',{class:'row',style:'flex-wrap:wrap'},
-        h('button',{class:'btn',onclick:()=>{const n=waN();if(!n){alert('Shop WhatsApp number is not set yet. Please try Instagram.');return}open('https://wa.me/'+n+'?text='+encodeURIComponent(onlineMsg()))}},'Send on WhatsApp'),
-        h('button',{class:'btn',onclick:()=>{const u=(S.cfg.ig||'airclub.clothing').replace(/^@/,'');try{navigator.clipboard.writeText(onlineMsg())}catch(e){}st.textContent='Message copied. Paste it in the Instagram chat and tap send.';open('https://ig.me/m/'+u)}},'Send on Instagram')),
+        waOn?h('button',{class:'btn',onclick:()=>{const n=waN();if(!n){alert('Shop WhatsApp number is not set yet.');return}open('https://wa.me/'+n+'?text='+encodeURIComponent(onlineMsg()))}},'Send on WhatsApp'):'',
+        igOn?h('button',{class:'btn',onclick:()=>{const u=(S.cfg.ig||'airclub.clothing').replace(/^@/,'');try{navigator.clipboard.writeText(onlineMsg())}catch(e){}st.textContent='Message copied. Paste it in the Instagram chat and tap send.';open('https://ig.me/m/'+u)}},'Send on Instagram'):''),
       st,
       h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{rv='pick';review()}},'Back'))];
   }
@@ -298,10 +299,11 @@ function cusView(){
   return h('div',{},stats,h('div',{class:'row',style:'justify-content:space-between'},h('b',{},L.length+' customers'),h('button',{class:'btn s',onclick:dl},'Download CSV')),
     L.map(c=>h('div',{class:'box'},h('b',{},c.name+' \u00b7 '+c.id),h('div',{class:'mu'},c.phone+(c.time?' \u00b7 '+new Date(c.time).toLocaleDateString():'')))));
 }
+function tg(k,l){const c=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{S.cfg[k]=e.target.checked;save()}});c.checked=!!S.cfg[k];return h('label',{style:'display:flex;gap:8px;align-items:center;color:var(--tx);margin-top:12px'},c,l)}
 function setView(){
   const f=(k,l,pl)=>[h('label',{},l),h('input',{value:S.cfg[k]||'',placeholder:pl,onchange:e=>{S.cfg[k]=e.target.value.trim();save()}})];
   const pc=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{S.cfg.showPrice=e.target.checked;save()}});pc.checked=!!S.cfg.showPrice;
-  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),f('wa','Shop WhatsApp number for online orders (with country code)','e.g. 919876543210'),f('ig','Instagram username for online orders (without @)','airclub.clothing'),h('label',{},'Show prices to customers'),pc,h('p',{class:'mu'},'Changes save automatically.'));
+  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),tg('waOn','Enable WhatsApp ordering (online customers)'),f('wa','Shop WhatsApp number (with country code)','e.g. 919876543210'),tg('igOn','Enable Instagram ordering (online customers)'),f('ig','Instagram username (without @)','airclub.clothing'),h('label',{},'Show prices to customers'),pc,h('p',{class:'mu'},'Changes save automatically.'));
 }
 function addrLines(a){return [a.house,a.street,a.landmark?'Near '+a.landmark:'',[a.city,a.district&&a.district!==a.city?a.district:''].filter(Boolean).join(', '),a.state].filter(Boolean)}
 function labelEl(a){const big=addrLines(a).join(' ').length>120;return h('div',{class:'lb'},h('div',{style:'display:flex;flex-direction:column;height:100%;border:2px solid #000;padding:.14in'},
