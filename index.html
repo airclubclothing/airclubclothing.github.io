@@ -64,7 +64,7 @@ function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
 const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},catMeasures:{Shirts:['Length','Chest','Shoulder','Sleeve'],'T-Shirts':['Length','Chest','Shoulder','Sleeve'],Jeans:['Waist','Length','Hip','Thigh']},catChart:{},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,adOn:false,unit:'in',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
-let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null;
+let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='sales',sSec='shop',sSt='act',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
 const clean=o=>JSON.parse(JSON.stringify(o));
@@ -341,11 +341,22 @@ function review(){
 function staff(){
   if(!staffOK){const em=h('input',{type:'email',placeholder:'Staff email'}),pw=h('input',{type:'password',placeholder:'Password'});
     return h('div',{class:'box'},h('h2',{},'Staff login'),h('label',{},'Email'),em,h('label',{},'Password'),pw,h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{try{await signInWithEmailAndPassword(auth,em.value.trim(),pw.value)}catch(e){alert('Login failed: '+e.code)}}},'Open')))}
-  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='req'?' on':''),onclick:()=>{tab='req';render()}},'Requests ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='done'?' on':''),onclick:()=>{tab='done';render()}},'Completed ('+S.requests.filter(r=>r.status==='Collected').length+')'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='req'?reqs(false):tab==='done'?reqs(true):tab==='cat'?catsView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
+  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='sales'?' on':''),onclick:()=>{tab='sales';render()}},'Sales ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='sales'?salesView():tab==='cat'?catsView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
 }
 function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t=r.status==='Delivering'?'Hi '+r.name+', your order ('+r.id+') from AIRCLUB CLOTHING is out for delivery.'+(r.track?' Delivery info: '+r.track+'.':''):'Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
-function reqs(dn){
-  const L=S.requests.filter(r=>(r.status==='Collected')===!!dn);
+function salesView(){
+  const isO=r=>!!r.addr,sh=S.requests.filter(r=>!isO(r)),on=S.requests.filter(isO);
+  const act=a=>a.filter(r=>r.status!=='Collected').length,dn=a=>a.filter(r=>r.status==='Collected').length;
+  const cur=sSec==='online'?on:sh;
+  const seg=(items)=>h('div',{class:'row',style:'flex-wrap:wrap'},items.map(([k,l,get,set])=>h('button',{class:'btn s'+(get()===k?'':' o'),style:'flex:1',onclick:()=>{set(k);render()}},l)));
+  return h('div',{},
+    seg([['shop','Shop requests ('+act(sh)+')',()=>sSec,v=>sSec=v],['online','Online requests ('+act(on)+')',()=>sSec,v=>sSec=v]]),
+    seg([['act','Active ('+act(cur)+')',()=>sSt,v=>sSt=v],['done','Completed ('+dn(cur)+')',()=>sSt,v=>sSt=v]]),
+    h('p',{class:'mu'},(sSec==='online'?'Online customers':'Shop customers')+' \u00b7 '+(sSt==='done'?'Completed':'Active')),
+    reqs(sSt==='done',sSec));
+}
+function reqs(dn,sec){
+  const L=S.requests.filter(r=>(r.status==='Collected')===!!dn&&(sec==='online'?!!r.addr:!r.addr));
   if(!L.length)return h('p',{class:'mu'},dn?'No completed orders yet.':'No active requests.');
   return h('div',{},L.map(r=>h('div',{class:'box'},
     h('div',{class:'row',style:'justify-content:space-between'},h('b',{},r.cid+' · '+r.name+(r.edited?' · edited':'')),h('span',{class:'st'},r.status)),
