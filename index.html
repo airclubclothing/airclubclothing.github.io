@@ -63,11 +63,13 @@ const auth=getAuth(app),db=getFirestore(app);
 function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(k==='class')e.className=a[k];else if(k.slice(0,2)==='on')e[k]=a[k];else e.setAttribute(k,a[k])}c.flat(9).forEach(x=>e.append(x&&x.nodeType?x:document.createTextNode(x===false||x==null?'':x)));return e}
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
-const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},catMeasures:{Shirts:['Length','Chest','Shoulder','Sleeve'],'T-Shirts':['Length','Chest','Shoulder','Sleeve'],Jeans:['Waist','Length','Hip','Thigh']},catChart:{},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,adOn:false,unit:'in',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
+const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},catMeasures:{Shirts:['Length','Chest','Shoulder','Sleeve'],'T-Shirts':['Length','Chest','Shoulder','Sleeve'],Jeans:['Waist','Length','Hip','Thigh']},catChart:{},catCharts:{},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,adOn:false,unit:'in',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
 let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='sales',sSec='shop',sSt='act',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
 const clean=o=>JSON.parse(JSON.stringify(o));
+function migrateCharts(){S.catCharts=S.catCharts||{};Object.keys(S.catMeasures||{}).forEach(c=>{if(!S.catCharts[c]&&(S.catMeasures[c]||[]).length){S.catCharts[c]=[{id:'default',name:'Default',fields:S.catMeasures[c].slice(),rows:clean((S.catChart||{})[c]||{})}]}})}
+migrateCharts();
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function logVisit(u){try{const k=ymd(new Date());if(localStorage.getItem('ac_v')===k)return;setDoc(doc(db,'visits',k+'_'+u.uid),{date:k,uid:u.uid}).then(()=>localStorage.setItem('ac_v',k)).catch(()=>{})}catch(e){}}
 function save(){syncDb().catch(e=>alert('Could not save: '+e.message))}
@@ -76,7 +78,7 @@ async function syncDb(){
   for(const p of S.products){const j=JSON.stringify(p);if(snap.products[p.id]!==j){snap.products[p.id]=j;w.push(setDoc(doc(db,'products',p.id),clean(p)))}}
   for(const id of Object.keys(snap.products)){if(!S.products.some(p=>p.id===id)){delete snap.products[id];w.push(deleteDoc(doc(db,'products',id)))}}
   for(const r of S.requests){const j=JSON.stringify(r);if(snap.requests[r.id]!==j){snap.requests[r.id]=j;w.push(setDoc(doc(db,'requests',r.id),clean(r)))}}
-  const sj=JSON.stringify([S.catSizes,S.cfg,S.catMeasures,S.catChart]);if(staffOK&&snap.set!==sj){snap.set=sj;w.push(setDoc(doc(db,'settings','main'),clean({catSizes:S.catSizes,cfg:S.cfg,catMeasures:S.catMeasures,catChart:S.catChart})))}
+  const sj=JSON.stringify([S.catSizes,S.cfg,S.catMeasures,S.catChart,S.catCharts]);if(staffOK&&snap.set!==sj){snap.set=sj;w.push(setDoc(doc(db,'settings','main'),clean({catSizes:S.catSizes,cfg:S.cfg,catMeasures:S.catMeasures,catChart:S.catChart,catCharts:S.catCharts})))}
   await Promise.all(w);
 }
 
@@ -100,7 +102,7 @@ function startListeners(user){
   unsubs.forEach(f=>f());unsubs=[];
   const re=()=>{const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;render()};
   unsubs.push(onSnapshot(collection(db,'products'),x=>{S.products=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>a.id<b.id?-1:1);snap.products={};S.products.forEach(p=>snap.products[p.id]=JSON.stringify(p));re()},e=>console.log(e)));
-  unsubs.push(onSnapshot(doc(db,'settings','main'),x=>{if(x.exists()){const d=x.data();if(d.catSizes)S.catSizes=d.catSizes;if(d.catMeasures)S.catMeasures=d.catMeasures;if(d.catChart)S.catChart=d.catChart;if(d.cfg)Object.assign(S.cfg,d.cfg);snap.set=JSON.stringify([S.catSizes,S.cfg,S.catMeasures,S.catChart])}re()},e=>console.log(e)));
+  unsubs.push(onSnapshot(doc(db,'settings','main'),x=>{if(x.exists()){const d=x.data();if(d.catSizes)S.catSizes=d.catSizes;if(d.catMeasures)S.catMeasures=d.catMeasures;if(d.catChart)S.catChart=d.catChart;if(d.catCharts)S.catCharts=d.catCharts;migrateCharts();if(d.cfg)Object.assign(S.cfg,d.cfg);snap.set=JSON.stringify([S.catSizes,S.cfg,S.catMeasures,S.catChart,S.catCharts])}re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(collection(db,'customers'),x=>{CU=x.docs.map(d=>d.data()).sort((a,b)=>(b.time||0)-(a.time||0));re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(query(collection(db,'visits'),where('date','>=',ymd(new Date(Date.now()-92*864e5)))),x=>{VI=x.docs.map(d=>d.data());re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(collection(db,'addresses'),x=>{AD=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>(b.time||0)-(a.time||0));re()},e=>console.log(e)));
@@ -244,29 +246,47 @@ function mine(){
 }
 const isOut=(p,s)=>(p.out||[]).includes(s)||(p.stock&&p.stock[s]!==undefined&&Number(p.stock[s])<=0);
 function soldToggle(r,i){const p=S.products.find(x=>x.id===i.pid),was=!!i.sold;i.sold=!was;if(p&&p.stock&&p.stock[i.size]!==undefined)p.stock[i.size]=Math.max(0,Number(p.stock[i.size])+(was?1:-1)*(i.q||1));save();render()}
-const mFields=c=>(S.catMeasures&&S.catMeasures[c])||[];
-const mVal=(p,s,f)=>{const v=p.chart&&p.chart[s]&&p.chart[s][f];if(v!==undefined&&v!=='')return v;const d=((S.catChart||{})[p.cat]||{})[s];const x=d&&d[f];return x==null?'':x};
-const hasChart=p=>!!p.cat&&mFields(p.cat).length>0&&(p.sizes||[]).some(s=>mFields(p.cat).some(f=>mVal(p,s,f)!==''));
+const chartsOf=c=>(S.catCharts&&S.catCharts[c])||[];
+const chartOf=p=>{const id=p.chartId===undefined?'default':p.chartId;return id?chartsOf(p.cat).find(x=>x.id===id)||null:null};
+const mFields=p=>{const c=chartOf(p);return c?c.fields:[]};
+const mVal=(p,s,f)=>{if(p.chartId===undefined){const v=p.chart&&p.chart[s]&&p.chart[s][f];if(v!==undefined&&v!=='')return v}const c=chartOf(p),x=c&&c.rows&&c.rows[s]&&c.rows[s][f];return x==null?'':x};
+const hasChart=p=>!!p.cat&&mFields(p).length>0&&(p.sizes||[]).some(s=>mFields(p).some(f=>mVal(p,s,f)!==''));
 const unitLbl=()=>S.cfg.unit==='cm'?'cm':'inches';
-const measText=(p,s)=>mFields(p.cat).filter(f=>mVal(p,s,f)!=='').map(f=>f+' '+mVal(p,s,f)).join(' \u00b7 ');
+const measText=(p,s)=>mFields(p).filter(f=>mVal(p,s,f)!=='').map(f=>f+' '+mVal(p,s,f)).join(' \u00b7 ');
 function chartTable(p){
-  const F=mFields(p.cat).filter(f=>p.sizes.some(s=>mVal(p,s,f)!==''));
+  const F=mFields(p).filter(f=>p.sizes.some(s=>mVal(p,s,f)!==''));
   const sel=s=>basket.some(b=>b.pid===p.id&&b.size===s);
   return h('div',{style:'overflow-x:auto'},h('table',{style:'border-collapse:collapse;width:100%;font-size:14px'},
     h('tr',{},h('th',{style:'text-align:left;padding:4px 8px'},'Size'),F.map(f=>h('th',{style:'text-align:left;padding:4px 8px'},f))),
     p.sizes.filter(s=>!isOut(p,s)).map(s=>h('tr',{style:sel(s)?'background:var(--ac);color:var(--acx)':''},h('td',{style:'padding:4px 8px;font-weight:600'},s),F.map(f=>h('td',{style:'padding:4px 8px'},String(mVal(p,s,f))||'-'))))),
     h('div',{class:'mu',style:'font-size:12px;margin-top:4px'},'Measurements in '+unitLbl()+'. Garment measured flat, may vary slightly.'));
 }
-function measEditor(c){
-  const F=mFields(c),cc=(S.catChart||{})[c]||{};
-  const fi=h('input',{value:F.join(', '),placeholder:'e.g. Length, Chest, Shoulder, Sleeve',onchange:e=>{S.catMeasures=S.catMeasures||{};S.catMeasures[c]=e.target.value.split(',').map(x=>x.trim()).filter(Boolean);save();render()}});
-  return h('div',{},h('label',{},'Measurement names (comma separated)'),fi,
-    F.length?h('div',{style:'overflow-x:auto;margin-top:8px'},h('table',{style:'border-collapse:collapse'},h('tr',{},h('th',{},'Size'),F.map(f=>h('th',{style:'padding:2px 4px'},f))),(S.catSizes[c]||[]).map(s=>h('tr',{},h('td',{style:'padding:2px 6px;font-weight:600'},s),F.map(f=>h('td',{},h('input',{value:((cc[s]||{})[f])||'',style:'width:70px',inputmode:'decimal',onchange:e=>{S.catChart=S.catChart||{};S.catChart[c]=S.catChart[c]||{};S.catChart[c][s]=S.catChart[c][s]||{};S.catChart[c][s][f]=e.target.value.trim();save()}}))))))):h('p',{class:'mu'},'Add measurement names first.'),
-    h('p',{class:'mu',style:'font-size:12px'},'Default values for all products in this category. You can change them for a single product in Products.'));
+const chOpen=new Set();
+function chartsEditor(c){
+  const L=chartsOf(c),ko='cat:'+c;
+  const dt=(key,sum,...kids)=>h('details',Object.assign({ontoggle:e=>{e.target.open?chOpen.add(key):chOpen.delete(key)}},chOpen.has(key)?{open:''}:{}),h('summary',{style:'cursor:pointer;margin:10px 0'},sum),...kids);
+  const one=ch=>{
+    const nm=h('input',{value:ch.name,placeholder:'e.g. Nelly',onchange:e=>{ch.name=e.target.value.trim()||'Chart';save();render()}});
+    const fi=h('input',{value:ch.fields.join(', '),placeholder:'e.g. Length, Chest, Shoulder, Sleeve',onchange:e=>{ch.fields=e.target.value.split(',').map(x=>x.trim()).filter(Boolean);save();render()}});
+    const sizes=S.catSizes[c]||[];
+    return dt(c+':'+ch.id,ch.name+' ('+ch.fields.length+' columns)',
+      h('label',{},'Chart name (only you see this, customers never see it)'),nm,
+      h('label',{},'Measurement names, comma separated'),fi,
+      ch.fields.length?h('div',{style:'overflow-x:auto;margin-top:8px'},h('table',{style:'border-collapse:collapse'},h('tr',{},h('th',{},'Size'),ch.fields.map(f=>h('th',{style:'padding:2px 4px'},f))),sizes.map(s=>h('tr',{},h('td',{style:'padding:2px 6px;font-weight:600'},s),ch.fields.map(f=>h('td',{},h('input',{value:((ch.rows&&ch.rows[s])||{})[f]||'',style:'width:70px',inputmode:'decimal',onchange:e=>{ch.rows=ch.rows||{};ch.rows[s]=ch.rows[s]||{};ch.rows[s][f]=e.target.value.trim();save()}}))))))):h('p',{class:'mu'},'Add measurement names first.'),
+      h('div',{class:'row'},h('button',{class:'btn o s',onclick:()=>{const used=S.products.filter(p=>p.cat===c&&chartOf(p)===ch);if(!confirm('Delete chart '+ch.name+'?'+(used.length?' '+used.length+' product(s) use it and will have no size chart.':'')))return;used.forEach(p=>{p.chartId=''});S.catCharts[c]=chartsOf(c).filter(x=>x!==ch);save();render()}},'Delete chart')));
+  };
+  const nn=h('input',{placeholder:'New chart name, e.g. Nelly'});
+  return dt(ko,'Size charts ('+L.length+')',
+    h('p',{class:'mu',style:'font-size:12px'},'One chart per brand. Pick the chart when you add a product. Customers only see the measurements, never the chart name.'),
+    L.map(one),
+    h('label',{},'Add size chart'),nn,
+    h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const n=nn.value.trim();if(!n){alert('Enter a chart name');return}S.catCharts=S.catCharts||{};const id='c'+Date.now().toString(36);S.catCharts[c]=[...L,{id,name:n,fields:L[0]?L[0].fields.slice():[],rows:{}}];chOpen.add(c+':'+id);chOpen.add(ko);save();render()}},'Add chart')));
 }
 function prodChart(p){
-  const F=mFields(p.cat);if(!F.length)return '';
-  return h('details',{},h('summary',{style:'cursor:pointer;margin:8px 0'},'Size chart (this product)'),h('div',{class:'mu',style:'font-size:12px'},'Empty box = uses the category default (shown faded)'),h('div',{style:'overflow-x:auto'},h('table',{style:'border-collapse:collapse'},h('tr',{},h('th',{},'Size'),F.map(f=>h('th',{style:'padding:2px 4px'},f))),p.sizes.map(s=>h('tr',{},h('td',{style:'padding:2px 6px;font-weight:600'},s),F.map(f=>{const dv=((((S.catChart||{})[p.cat]||{})[s]||{})[f])||'';return h('td',{},h('input',{value:(p.chart&&p.chart[s]&&p.chart[s][f])||'',placeholder:dv,inputmode:'decimal',style:'width:64px',onchange:e=>{const v=e.target.value.trim();p.chart=p.chart||{};p.chart[s]=p.chart[s]||{};if(v==='')delete p.chart[s][f];else p.chart[s][f]=v;save()}}))}))))));
+  const L=chartsOf(p.cat),cur=p.chartId===undefined?'default':p.chartId;
+  const sl=h('select',{onchange:e=>{p.chartId=e.target.value;save();render()}},h('option',{value:''},'No size chart'),L.map(x=>h('option',{value:x.id},x.name)));
+  sl.value=L.some(x=>x.id===cur)?cur:'';
+  return h('div',{},h('label',{},'Size chart (customers do not see the name)'),sl);
 }
 const bc=()=>basket.reduce((a,b)=>a+(b.q||1),0);
 function tapSize(pid,s){const i=basket.findIndex(b=>b.pid===pid&&b.size===s);if(i>=0){basket.splice(i,1);if(lastSel&&lastSel.pid===pid&&lastSel.size===s)lastSel=null}else{basket.push({pid,size:s,q:1});lastSel={pid,size:s}}}
@@ -459,19 +479,23 @@ function procImg(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image
 function catsView(){
   const nn=h('input',{placeholder:'New category name, e.g. Trousers'}),ns=h('input',{placeholder:'Sizes: S,M,L,XL or 28-36 or 28-36/2'});
   return h('div',{},h('p',{class:'mu'},'Set the sizes for each category. Use commas, or a range: 28-36 gives every number, 28-36/2 gives every second number (28, 30, 32...).'),
-    Object.keys(S.catSizes).map(c=>{const t=h('input',{value:S.catSizes[c].join(', ')});return h('div',{class:'box'},h('b',{},c),h('label',{},'Sizes'),t,h('details',{},h('summary',{style:'cursor:pointer;margin:10px 0'},'Measurements (size chart)'),measEditor(c)),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const l=parseSizes(t.value);if(!l.length){alert('Add at least one size');return}S.catSizes[c]=l;save();render()}},'Save sizes'),h('button',{class:'btn o s',onclick:()=>{if(S.products.some(p=>p.cat===c)){alert('Delete its products first');return}if(confirm('Delete category '+c+'?')){delete S.catSizes[c];save();render()}}},'Delete category')))}),
+    Object.keys(S.catSizes).map(c=>{const t=h('input',{value:S.catSizes[c].join(', ')});return h('div',{class:'box'},h('b',{},c),h('label',{},'Sizes'),t,chartsEditor(c),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const l=parseSizes(t.value);if(!l.length){alert('Add at least one size');return}S.catSizes[c]=l;save();render()}},'Save sizes'),h('button',{class:'btn o s',onclick:()=>{if(S.products.some(p=>p.cat===c)){alert('Delete its products first');return}if(confirm('Delete category '+c+'?')){delete S.catSizes[c];if(S.catCharts)delete S.catCharts[c];if(S.catMeasures)delete S.catMeasures[c];if(S.catChart)delete S.catChart[c];save();render()}}},'Delete category')))}),
     h('div',{class:'box'},h('h3',{},'Add category'),h('label',{},'Name'),nn,h('label',{},'Sizes'),ns,h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{const n=nn.value.trim(),l=parseSizes(ns.value);if(!n||!l.length){alert('Enter a name and sizes');return}S.catSizes[n]=l;save();render()}},'Add category'))));
 }
 function prods(){
   const code=h('input',{placeholder:'e.g. SH-003'}),nm=h('input',{placeholder:'Model name'}),ct=h('input',{placeholder:'Category',list:'cl'}),dl=h('datalist',{id:'cl'},cats().map(c=>h('option',{value:c}))),
     szBox=h('div',{class:'sz'}),stBox=h('div',{}),stk={},picked=new Set(),loc=h('input',{placeholder:'Godown location, e.g. G1-A3'}),pr=h('input',{placeholder:'e.g. 799',inputmode:'numeric'}),file=h('input',{type:'file',accept:'image/*',multiple:'multiple',onchange:()=>{const u=document.getElementById('ust');if(u)u.textContent=file.files.length+' photo(s) selected'}});
-  const drawStk=()=>{stBox.replaceChildren();[...picked].forEach(s=>{stBox.append(h('label',{},'Stock for size '+s+' (leave empty if not tracking)'),h('input',{type:'number',min:'0',inputmode:'numeric',placeholder:'e.g. 5',value:stk[s]==null?'':stk[s],oninput:e=>{stk[s]=e.target.value}}))})};
+  const drawStk=()=>{stBox.replaceChildren();[...picked].forEach(s=>{stBox.append(h('label',{},'Stock for size '+s+' (leave empty if not tracking)'),h('input',{type:'number',min:'0',inputmode:'numeric',placeholder:'e.g. 5',value:stk[s]==null?'':stk[s],oninput:e=>{stk[s]=e.target.value}}))});drawPv()};
   const drawSz=()=>{szBox.replaceChildren();picked.clear();for(const k in stk)delete stk[k];drawStk();const list=S.catSizes[ct.value.trim()]||[];if(!list.length){szBox.append(h('span',{class:'mu'},'Choose a category to see its sizes (edit them in Categories & sizes)'));return}list.forEach(s=>{const b=h('button',{},s);b.onclick=()=>{picked.has(s)?picked.delete(s):picked.add(s);b.className=picked.has(s)?'on':'';drawStk()};szBox.append(b)})};
-  ct.oninput=drawSz;ct.onchange=drawSz;drawSz();
-  const add=h('div',{class:'box'},h('h3',{},'Add product'),h('label',{},'Model code'),code,h('label',{},'Name'),nm,h('label',{},'Category'),ct,dl,h('label',{},'Sizes (tap only the sizes this model has)'),szBox,stBox,h('label',{},'Godown location'),loc,h('label',{},'Price in ₹ (optional)'),pr,h('label',{},'Photos (select 2-3 from different angles)'),file,h('p',{class:'mu',id:'ust'},''),
+  const chs=h('select',{onchange:()=>drawPv()}),pv=h('div',{});
+  const drawChs=()=>{chs.replaceChildren(h('option',{value:''},'No size chart'),chartsOf(ct.value.trim()).map(x=>h('option',{value:x.id},x.name)));chs.value='';drawPv()};
+  const drawPv=()=>{pv.replaceChildren();const k=ct.value.trim(),ch=chartsOf(k).find(x=>x.id===chs.value);if(!ch||!ch.fields.length||!picked.size)return;const ss=(S.catSizes[k]||[]).filter(s=>picked.has(s));pv.append(h('div',{class:'mu',style:'margin-top:6px'},'Preview (customers will not see the chart name)'),h('div',{style:'overflow-x:auto'},h('table',{style:'border-collapse:collapse;font-size:14px'},h('tr',{},h('th',{style:'padding:2px 8px;text-align:left'},'Size'),ch.fields.map(f=>h('th',{style:'padding:2px 8px;text-align:left'},f))),ss.map(s=>h('tr',{},h('td',{style:'padding:2px 8px;font-weight:600'},s),ch.fields.map(f=>h('td',{style:'padding:2px 8px'},String(((ch.rows&&ch.rows[s])||{})[f]||'')||'-')))))))};
+  const onCat=()=>{drawSz();drawChs()};
+  ct.oninput=onCat;ct.onchange=onCat;drawSz();drawChs();
+  const add=h('div',{class:'box'},h('h3',{},'Add product'),h('label',{},'Model code'),code,h('label',{},'Name'),nm,h('label',{},'Category'),ct,dl,h('label',{},'Sizes (tap only the sizes this model has)'),szBox,stBox,h('label',{},'Size chart (pick the brand chart, customers will not see its name)'),chs,pv,h('label',{},'Godown location'),loc,h('label',{},'Price in ₹ (optional)'),pr,h('label',{},'Photos (select 2-3 from different angles)'),file,h('p',{class:'mu',id:'ust'},''),
     h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{
       if(!code.value.trim()||!ct.value.trim()||!picked.size){alert('Code, category and at least one size are required');return}
-      const mk=(imgs)=>{const id='p'+Date.now(),img=imgs[0]?imgs[0].t:'',hi=imgs[0]?imgs[0].hi:'';S.products.push({id,hi,imgs,code:code.value.trim(),name:nm.value.trim()||code.value.trim(),cat:ct.value.trim(),sizes:(S.catSizes[ct.value.trim()]||[]).filter(s=>picked.has(s)),stock:Object.fromEntries(Object.entries(stk).filter(([k,v])=>picked.has(k)&&v!==''&&v!=null).map(([k,v])=>[k,Math.max(0,parseInt(v,10)||0)])),loc:loc.value.trim(),price:pr.value.trim(),img});save();render()};
+      const mk=(imgs)=>{const id='p'+Date.now(),img=imgs[0]?imgs[0].t:'',hi=imgs[0]?imgs[0].hi:'';S.products.push({id,hi,imgs,code:code.value.trim(),name:nm.value.trim()||code.value.trim(),cat:ct.value.trim(),sizes:(S.catSizes[ct.value.trim()]||[]).filter(s=>picked.has(s)),stock:Object.fromEntries(Object.entries(stk).filter(([k,v])=>picked.has(k)&&v!==''&&v!=null).map(([k,v])=>[k,Math.max(0,parseInt(v,10)||0)])),loc:loc.value.trim(),price:pr.value.trim(),chartId:chs.value,img});save();render()};
       const fs=[...file.files];if(!fs.length){mk([]);return}
       if(upBusy)return;upBusy=true;const u=document.getElementById('ust');if(u)u.textContent='Uploading photos… please wait';
       (async()=>{const out=[];for(const f of fs){out.push(await new Promise(res=>procImg(f,async(th,b)=>res(await upPhoto(b,th)))))}upBusy=false;mk(out)})()}},'Save product')));
