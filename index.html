@@ -63,7 +63,7 @@ const auth=getAuth(app),db=getFirestore(app);
 function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(k==='class')e.className=a[k];else if(k.slice(0,2)==='on')e[k]=a[k];else e.setAttribute(k,a[k])}c.flat(9).forEach(x=>e.append(x&&x.nodeType?x:document.createTextNode(x===false||x==null?'':x)));return e}
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
-const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
+const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},catMeasures:{Shirts:['Length','Chest','Shoulder','Sleeve'],'T-Shirts':['Length','Chest','Shoulder','Sleeve'],Jeans:['Waist','Length','Hip','Thigh']},catChart:{},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,unit:'in',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
 let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
@@ -76,14 +76,14 @@ async function syncDb(){
   for(const p of S.products){const j=JSON.stringify(p);if(snap.products[p.id]!==j){snap.products[p.id]=j;w.push(setDoc(doc(db,'products',p.id),clean(p)))}}
   for(const id of Object.keys(snap.products)){if(!S.products.some(p=>p.id===id)){delete snap.products[id];w.push(deleteDoc(doc(db,'products',id)))}}
   for(const r of S.requests){const j=JSON.stringify(r);if(snap.requests[r.id]!==j){snap.requests[r.id]=j;w.push(setDoc(doc(db,'requests',r.id),clean(r)))}}
-  const sj=JSON.stringify([S.catSizes,S.cfg]);if(staffOK&&snap.set!==sj){snap.set=sj;w.push(setDoc(doc(db,'settings','main'),clean({catSizes:S.catSizes,cfg:S.cfg})))}
+  const sj=JSON.stringify([S.catSizes,S.cfg,S.catMeasures,S.catChart]);if(staffOK&&snap.set!==sj){snap.set=sj;w.push(setDoc(doc(db,'settings','main'),clean({catSizes:S.catSizes,cfg:S.cfg,catMeasures:S.catMeasures,catChart:S.catChart})))}
   await Promise.all(w);
 }
 function startListeners(user){
   unsubs.forEach(f=>f());unsubs=[];
   const re=()=>{const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;render()};
   unsubs.push(onSnapshot(collection(db,'products'),x=>{S.products=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>a.id<b.id?-1:1);snap.products={};S.products.forEach(p=>snap.products[p.id]=JSON.stringify(p));re()},e=>console.log(e)));
-  unsubs.push(onSnapshot(doc(db,'settings','main'),x=>{if(x.exists()){const d=x.data();if(d.catSizes)S.catSizes=d.catSizes;if(d.cfg)Object.assign(S.cfg,d.cfg);snap.set=JSON.stringify([S.catSizes,S.cfg])}re()},e=>console.log(e)));
+  unsubs.push(onSnapshot(doc(db,'settings','main'),x=>{if(x.exists()){const d=x.data();if(d.catSizes)S.catSizes=d.catSizes;if(d.catMeasures)S.catMeasures=d.catMeasures;if(d.catChart)S.catChart=d.catChart;if(d.cfg)Object.assign(S.cfg,d.cfg);snap.set=JSON.stringify([S.catSizes,S.cfg,S.catMeasures,S.catChart])}re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(collection(db,'customers'),x=>{CU=x.docs.map(d=>d.data()).sort((a,b)=>(b.time||0)-(a.time||0));re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(query(collection(db,'visits'),where('date','>=',ymd(new Date(Date.now()-92*864e5)))),x=>{VI=x.docs.map(d=>d.data());re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(collection(db,'addresses'),x=>{AD=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>(b.time||0)-(a.time||0));re()},e=>console.log(e)));
@@ -113,7 +113,7 @@ const idbGet=k=>idb().then(d=>new Promise(res=>{const q=d.transaction('f').objec
 const idbDel=k=>idb().then(d=>{d.transaction('f','readwrite').objectStore('f').delete(k)}).catch(()=>{});
 let upBusy=false;
 function photosOf(p){return p&&p.imgs&&p.imgs.length?p.imgs:(p&&p.img?[{t:p.img,hi:p.hi||''}]:[])}
-function openZoom2(p){
+function openZoom2(p,showChart){
   const L=photosOf(p);if(!L.length)return;
   let z=1,cur=0,d0=0,z0=1,tm,ch=false;const st=[];
   const ims=L.map(x=>h('img',{src:x.t,alt:p.name,class:'zi'}));
@@ -132,7 +132,9 @@ function openZoom2(p){
   ims.forEach(im=>{im.onclick=()=>set(z===1?2:1)});
   const close=()=>{document.removeEventListener('keydown',esc);ov.remove();if(ch)render()},esc=e=>{if(e.key==='Escape')close();else if(e.key==='ArrowRight')go(1);else if(e.key==='ArrowLeft')go(-1)};
   const ctl=h('div',{class:'zc'},h('b',{},p.name+' · '+p.code),pos);
-  if(mode==='cust'&&C)ctl.append(h('div',{class:'sz',style:'margin:8px 0'},p.sizes.filter(s=>!isOut(p,s)).map(s=>{const on=()=>basket.some(x=>x.pid===p.id&&x.size===s),b=h('button',{class:on()?'on':''},s);b.onclick=()=>{tapSize(p.id,s);b.className=on()?'on':'';ch=true};return b})));
+  const cb=hasChart(p)?h('div',{style:'margin:6px 0;max-height:34vh;overflow:auto;display:'+(showChart?'block':'none')},chartTable(p)):null;
+  if(mode==='cust')ctl.append(h('div',{class:'sz',style:'margin:8px 0'},p.sizes.filter(s=>!isOut(p,s)).map(s=>{const on=()=>basket.some(x=>x.pid===p.id&&x.size===s),b=h('button',{class:on()?'on':''},s);b.onclick=()=>{tapSize(p.id,s);b.className=on()?'on':'';ch=true};return b})));
+  if(cb)ctl.append(h('button',{class:'btn o s',onclick:()=>{cb.style.display=cb.style.display==='none'?'block':'none'}},'Size chart'),cb);
   ctl.append(h('div',{class:'row'},L.length>1?h('button',{class:'btn o s',onclick:()=>go(-1)},'‹'):'',h('button',{class:'btn o s',onclick:()=>set(z-.25)},'−'),lab,h('button',{class:'btn o s',onclick:()=>set(z+.25)},'+'),h('button',{class:'btn o s',onclick:()=>set(1)},'Reset'),L.length>1?h('button',{class:'btn o s',onclick:()=>go(1)},'›'):''));
   const ov=h('div',{class:'zo'},h('div',{class:'zt'},tp,h('button',{class:'btn s',onclick:close},'✕ Close')),trk,ctl);
   const dist=e=>Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
@@ -186,7 +188,7 @@ function shop(){
     h('input',{id:'sq',placeholder:'Search model code or name',value:q,oninput:e=>{q=e.target.value;render();const x=document.getElementById('sq');x.focus();x.setSelectionRange(q.length,q.length)}}),
     h('div',{class:'chips'},['All',...cats().filter(c=>S.products.some(p=>p.cat===c))].map(c=>h('button',{class:'chip'+(c===cat?' on':''),onclick:()=>{cat=c;size='All';render()}},c))),
     h('div',{class:'chips'},['All',...allSizes].map(s=>h('button',{class:'chip'+(s===size?' on':''),onclick:()=>{size=s;render()}},s==='All'?'All sizes':s))),
-    list.length?h('div',{class:'grid'},list.map(p=>h('div',{class:'card'},ph(p),h('div',{class:'ci'},h('b',{},p.name),h('small',{},p.code+(S.cfg.showPrice&&p.price?' · ₹'+p.price:'')),
+    list.length?h('div',{class:'grid'},list.map(p=>h('div',{class:'card'},ph(p),h('div',{class:'ci'},h('b',{},p.name),h('small',{},p.code+(S.cfg.showPrice&&p.price?' · ₹'+p.price:'')),hasChart(p)?h('div',{},h('a',{href:'#',style:'font-size:12px;color:var(--mu);text-decoration:underline',onclick:e=>{e.preventDefault();e.stopPropagation();openZoom2(p,true)}},'Size chart')):'',
       h('div',{class:'sz'},p.sizes.filter(s=>size==='All'||s===size).map(s=>h('button',isOut(p,s)?{class:'out',disabled:'disabled'}:{class:inB(p.id,s)?'on':'',onclick:()=>{tapSize(p.id,s);render()}},s))))))):h('p',{class:'mu'},'No styles here yet.'),
     (S.cfg.phone||S.cfg.addr||S.cfg.timing)?h('div',{class:'box'},h('b',{},'Visit us'),S.cfg.addr?h('div',{class:'mu'},S.cfg.addr):'',S.cfg.timing?h('div',{class:'mu'},S.cfg.timing):'',S.cfg.phone?h('div',{class:'mu'},'Call: '+S.cfg.phone):''):'',
     h('div',{class:'bar'},barLeft(),h('button',{class:'btn',onclick:()=>{rv='pick';review()}},'Review & send')));
@@ -206,7 +208,7 @@ function mine(){
   const tn=editing?'basket':(ptab||(basket.length?'basket':(my.length?'orders':'basket')));
   const fmt=t=>new Date(t).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})+', '+new Date(t).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});
   const basketBox=h('div',{class:'box'},h('b',{},(editing?'Order being edited':'Not sent yet')+' ('+bc()+')'),
-    basket.length?basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{code:'?',name:'Removed model'};return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name||p.code),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size)),qtyCtl(b,render),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);render()}},'Remove'))}):h('p',{class:'mu'},'Nothing selected. Go back to the shop and tap sizes to add styles.'),
+    basket.length?basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{code:'?',name:'Removed model'};return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name||p.code),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size),h('div',{class:'mu',style:'font-size:12px'},measText(p,b.size))),qtyCtl(b,render),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);render()}},'Remove'))}):h('p',{class:'mu'},'Nothing selected. Go back to the shop and tap sizes to add styles.'),
     basket.length||editing?h('div',{class:'row'},editing?h('button',{class:'btn o s',onclick:()=>{editing=null;basket=[];render()}},'Cancel edit'):'',h('button',{class:'btn s',onclick:()=>{if(editing)send();else{rv='pick';review()}}},editing?'Update order':'Send to shop')):'');
   const orders=my.length?my.map(r=>{const can=!editing&&(r.status==='New'||r.status==='Packing');return h('div',{class:'box'},
     h('div',{class:'row',style:'justify-content:space-between'},h('b',{},'Order '+r.id+(r.edited?' \u00b7 edited':'')),h('span',{class:'st'},(r.status==='Collected'&&r.shipped?'Delivered':(STL[r.status]||r.status)))),
@@ -224,6 +226,30 @@ function mine(){
 }
 const isOut=(p,s)=>(p.out||[]).includes(s)||(p.stock&&p.stock[s]!==undefined&&Number(p.stock[s])<=0);
 function soldToggle(r,i){const p=S.products.find(x=>x.id===i.pid),was=!!i.sold;i.sold=!was;if(p&&p.stock&&p.stock[i.size]!==undefined)p.stock[i.size]=Math.max(0,Number(p.stock[i.size])+(was?1:-1)*(i.q||1));save();render()}
+const mFields=c=>(S.catMeasures&&S.catMeasures[c])||[];
+const mVal=(p,s,f)=>{const v=p.chart&&p.chart[s]&&p.chart[s][f];if(v!==undefined&&v!=='')return v;const d=((S.catChart||{})[p.cat]||{})[s];const x=d&&d[f];return x==null?'':x};
+const hasChart=p=>!!p.cat&&mFields(p.cat).length>0&&(p.sizes||[]).some(s=>mFields(p.cat).some(f=>mVal(p,s,f)!==''));
+const unitLbl=()=>S.cfg.unit==='cm'?'cm':'inches';
+const measText=(p,s)=>mFields(p.cat).filter(f=>mVal(p,s,f)!=='').map(f=>f+' '+mVal(p,s,f)).join(' \u00b7 ');
+function chartTable(p){
+  const F=mFields(p.cat).filter(f=>p.sizes.some(s=>mVal(p,s,f)!==''));
+  const sel=s=>basket.some(b=>b.pid===p.id&&b.size===s);
+  return h('div',{style:'overflow-x:auto'},h('table',{style:'border-collapse:collapse;width:100%;font-size:14px'},
+    h('tr',{},h('th',{style:'text-align:left;padding:4px 8px'},'Size'),F.map(f=>h('th',{style:'text-align:left;padding:4px 8px'},f))),
+    p.sizes.filter(s=>!isOut(p,s)).map(s=>h('tr',{style:sel(s)?'background:var(--ac);color:var(--acx)':''},h('td',{style:'padding:4px 8px;font-weight:600'},s),F.map(f=>h('td',{style:'padding:4px 8px'},String(mVal(p,s,f))||'-'))))),
+    h('div',{class:'mu',style:'font-size:12px;margin-top:4px'},'Measurements in '+unitLbl()+'. Garment measured flat, may vary slightly.'));
+}
+function measEditor(c){
+  const F=mFields(c),cc=(S.catChart||{})[c]||{};
+  const fi=h('input',{value:F.join(', '),placeholder:'e.g. Length, Chest, Shoulder, Sleeve',onchange:e=>{S.catMeasures=S.catMeasures||{};S.catMeasures[c]=e.target.value.split(',').map(x=>x.trim()).filter(Boolean);save();render()}});
+  return h('div',{},h('label',{},'Measurement names (comma separated)'),fi,
+    F.length?h('div',{style:'overflow-x:auto;margin-top:8px'},h('table',{style:'border-collapse:collapse'},h('tr',{},h('th',{},'Size'),F.map(f=>h('th',{style:'padding:2px 4px'},f))),(S.catSizes[c]||[]).map(s=>h('tr',{},h('td',{style:'padding:2px 6px;font-weight:600'},s),F.map(f=>h('td',{},h('input',{value:((cc[s]||{})[f])||'',style:'width:70px',inputmode:'decimal',onchange:e=>{S.catChart=S.catChart||{};S.catChart[c]=S.catChart[c]||{};S.catChart[c][s]=S.catChart[c][s]||{};S.catChart[c][s][f]=e.target.value.trim();save()}}))))))):h('p',{class:'mu'},'Add measurement names first.'),
+    h('p',{class:'mu',style:'font-size:12px'},'Default values for all products in this category. You can change them for a single product in Products.'));
+}
+function prodChart(p){
+  const F=mFields(p.cat);if(!F.length)return '';
+  return h('details',{},h('summary',{style:'cursor:pointer;margin:8px 0'},'Size chart (this product)'),h('div',{class:'mu',style:'font-size:12px'},'Empty box = uses the category default (shown faded)'),h('div',{style:'overflow-x:auto'},h('table',{style:'border-collapse:collapse'},h('tr',{},h('th',{},'Size'),F.map(f=>h('th',{style:'padding:2px 4px'},f))),p.sizes.map(s=>h('tr',{},h('td',{style:'padding:2px 6px;font-weight:600'},s),F.map(f=>{const dv=((((S.catChart||{})[p.cat]||{})[s]||{})[f])||'';return h('td',{},h('input',{value:(p.chart&&p.chart[s]&&p.chart[s][f])||'',placeholder:dv,inputmode:'decimal',style:'width:64px',onchange:e=>{const v=e.target.value.trim();p.chart=p.chart||{};p.chart[s]=p.chart[s]||{};if(v==='')delete p.chart[s][f];else p.chart[s][f]=v;save()}}))}))))));
+}
 const bc=()=>basket.reduce((a,b)=>a+(b.q||1),0);
 function tapSize(pid,s){const i=basket.findIndex(b=>b.pid===pid&&b.size===s);if(i>=0){basket.splice(i,1);if(lastSel&&lastSel.pid===pid&&lastSel.size===s)lastSel=null}else{basket.push({pid,size:s,q:1});lastSel={pid,size:s}}}
 function qtyCtl(b,after){
@@ -248,7 +274,7 @@ function review(){
   const open=u=>{const w=window.open(u,'_blank');if(!w)location.href=u};
   const waN=()=>{let n=String(S.cfg.wa||S.cfg.phone||'').replace(/\D/g,'');if(n.length===10)n='91'+n;return n};
   const nm=h('input',{placeholder:'Your name or nickname'}),pn=h('input',{placeholder:'Mobile number',inputmode:'tel'});
-  const items=basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid);return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size)),qtyCtl(b,review),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);basket.length?review():render()}},'Remove'))});
+  const items=basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid);return h('div',{class:'row'},h('div',{style:'width:44px'},ph(p)),h('div',{style:'flex:1'},h('b',{},p.name),h('div',{class:'mu'},p.code+' \u00b7 Size '+b.size),h('div',{class:'mu',style:'font-size:12px'},measText(p,b.size))),qtyCtl(b,review),h('button',{class:'btn o s',onclick:()=>{basket.splice(i,1);basket.length?review():render()}},'Remove'))});
   const noteBox=(after)=>[h('label',{},'Note (optional)'),h('input',{placeholder:'e.g. need for a wedding, prefer dark colours',value:note,oninput:e=>{note=e.target.value;if(after)after()}})];
   let body;
   if(view==='pick'){
@@ -318,7 +344,7 @@ function tg(k,l){const c=h('input',{type:'checkbox',style:'width:auto',onchange:
 function setView(){
   const f=(k,l,pl)=>[h('label',{},l),h('input',{value:S.cfg[k]||'',placeholder:pl,onchange:e=>{S.cfg[k]=e.target.value.trim();save()}})];
   const pc=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{S.cfg.showPrice=e.target.checked;save()}});pc.checked=!!S.cfg.showPrice;
-  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),tg('waOn','Enable WhatsApp ordering (online customers)'),f('wa','Shop WhatsApp number (with country code)','e.g. 919876543210'),tg('igOn','Enable Instagram ordering (online customers)'),f('ig','Instagram username (without @)','airclub.clothing'),h('label',{},'Show prices to customers'),pc,h('p',{class:'mu'},'Changes save automatically.'));
+  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),tg('waOn','Enable WhatsApp ordering (online customers)'),f('wa','Shop WhatsApp number (with country code)','e.g. 919876543210'),tg('igOn','Enable Instagram ordering (online customers)'),f('ig','Instagram username (without @)','airclub.clothing'),h('label',{},'Show prices to customers'),pc,h('label',{},'Measurement unit'),(()=>{const sl=h('select',{onchange:e=>{S.cfg.unit=e.target.value;save()}},h('option',{value:'in'},'Inches'),h('option',{value:'cm'},'Centimetres'));sl.value=S.cfg.unit||'in';return sl})(),h('p',{class:'mu'},'Changes save automatically.'));
 }
 function addrLines(a){return [a.house,a.street,a.landmark?'Near '+a.landmark:'',[a.city,a.district&&a.district!==a.city?a.district:''].filter(Boolean).join(', '),a.state].filter(Boolean)}
 function labelEl(a){const big=addrLines(a).join(' ').length>120;return h('div',{class:'lb'},h('div',{style:'display:flex;flex-direction:column;height:100%;border:2px solid #000;padding:.14in'},
@@ -366,7 +392,7 @@ function procImg(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image
 function catsView(){
   const nn=h('input',{placeholder:'New category name, e.g. Trousers'}),ns=h('input',{placeholder:'Sizes: S,M,L,XL or 28-36 or 28-36/2'});
   return h('div',{},h('p',{class:'mu'},'Set the sizes for each category. Use commas, or a range: 28-36 gives every number, 28-36/2 gives every second number (28, 30, 32...).'),
-    Object.keys(S.catSizes).map(c=>{const t=h('input',{value:S.catSizes[c].join(', ')});return h('div',{class:'box'},h('b',{},c),h('label',{},'Sizes'),t,h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const l=parseSizes(t.value);if(!l.length){alert('Add at least one size');return}S.catSizes[c]=l;save();render()}},'Save sizes'),h('button',{class:'btn o s',onclick:()=>{if(S.products.some(p=>p.cat===c)){alert('Delete its products first');return}if(confirm('Delete category '+c+'?')){delete S.catSizes[c];save();render()}}},'Delete category')))}),
+    Object.keys(S.catSizes).map(c=>{const t=h('input',{value:S.catSizes[c].join(', ')});return h('div',{class:'box'},h('b',{},c),h('label',{},'Sizes'),t,h('details',{},h('summary',{style:'cursor:pointer;margin:10px 0'},'Measurements (size chart)'),measEditor(c)),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const l=parseSizes(t.value);if(!l.length){alert('Add at least one size');return}S.catSizes[c]=l;save();render()}},'Save sizes'),h('button',{class:'btn o s',onclick:()=>{if(S.products.some(p=>p.cat===c)){alert('Delete its products first');return}if(confirm('Delete category '+c+'?')){delete S.catSizes[c];save();render()}}},'Delete category')))}),
     h('div',{class:'box'},h('h3',{},'Add category'),h('label',{},'Name'),nn,h('label',{},'Sizes'),ns,h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{const n=nn.value.trim(),l=parseSizes(ns.value);if(!n||!l.length){alert('Enter a name and sizes');return}S.catSizes[n]=l;save();render()}},'Add category'))));
 }
 function prods(){
@@ -386,7 +412,7 @@ function prods(){
     p.sizes.map(s=>{const cur=()=>p.stock&&p.stock[s]!==undefined?p.stock[s]:((p.out||[]).includes(s)?0:'');
       const set=v=>{p.stock=p.stock||{};if(v===''||v==null){delete p.stock[s]}else{p.stock[s]=Math.max(0,parseInt(v,10)||0)}p.out=(p.out||[]).filter(x=>x!==s);save();render()};
       const inp=h('input',{type:'number',min:'0',inputmode:'numeric',value:String(cur()),style:'width:72px;text-align:center',onchange:e=>set(e.target.value)});
-      return h('div',{class:'row',style:'margin:4px 0'},h('b',{style:'width:36px'},s),h('button',{class:'btn o s',onclick:()=>set(Math.max(0,(Number(cur())||0)-1))},'\u2212'),inp,h('button',{class:'btn o s',onclick:()=>set((Number(cur())||0)+1)},'+'),isOut(p,s)?h('span',{class:'mu'},'sold out'):'')}),h('input',{value:p.price||'',placeholder:'Price ₹',inputmode:'numeric',style:'margin-top:8px',onchange:e=>{p.price=e.target.value.trim();save()}}),
+      return h('div',{class:'row',style:'margin:4px 0'},h('b',{style:'width:36px'},s),h('button',{class:'btn o s',onclick:()=>set(Math.max(0,(Number(cur())||0)-1))},'\u2212'),inp,h('button',{class:'btn o s',onclick:()=>set((Number(cur())||0)+1)},'+'),isOut(p,s)?h('span',{class:'mu'},'sold out'):'')}),prodChart(p),h('input',{value:p.price||'',placeholder:'Price ₹',inputmode:'numeric',style:'margin-top:8px',onchange:e=>{p.price=e.target.value.trim();save()}}),
     photosOf(p).length?h('div',{class:'th'},photosOf(p).map((x,i)=>h('div',{},h('div',Object.assign({class:'ph'},img({img:x.t}))),h('button',{class:'btn o s',onclick:()=>{const c=photosOf(p).slice();c.splice(i,1);p.imgs=c;p.img=c[0]?c[0].t:'';p.hi=c[0]?c[0].hi:'';save();render()}},'✕')))):'',
     h('button',{class:'btn o s',onclick:()=>{const fi=h('input',{type:'file',accept:'image/*',multiple:'multiple'});fi.onchange=async()=>{const fs=[...fi.files];if(!fs.length)return;const cur=photosOf(p).slice();for(const f of fs){cur.push(await new Promise(res=>procImg(f,async(th,b)=>res(await upPhoto(b,th)))))}p.imgs=cur;p.img=cur[0].t;p.hi=cur[0].hi;save();render()};fi.click()}},'Add photos'),' ',h('button',{class:'btn o s',onclick:()=>{if(confirm('Delete '+p.code+'?')){S.products=S.products.filter(x=>x.id!==p.id);save();render()}}},'Delete'))))));
 }
