@@ -79,6 +79,23 @@ async function syncDb(){
   const sj=JSON.stringify([S.catSizes,S.cfg,S.catMeasures,S.catChart]);if(staffOK&&snap.set!==sj){snap.set=sj;w.push(setDoc(doc(db,'settings','main'),clean({catSizes:S.catSizes,cfg:S.cfg,catMeasures:S.catMeasures,catChart:S.catChart})))}
   await Promise.all(w);
 }
+
+const BASETITLE=document.title;let AC=null,unseen=0;
+const unlockAudio=()=>{try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}};
+['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,unlockAudio,{passive:true}));
+function beep(){try{if(!AC)return;[0,.25,.5].forEach((t,i)=>{const o=AC.createOscillator(),g=AC.createGain(),n=AC.currentTime+t;o.type='sine';o.frequency.value=i%2?660:880;g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(.3,n+.02);g.gain.exponentialRampToValueAtTime(.0001,n+.2);o.connect(g);g.connect(AC.destination);o.start(n);o.stop(n+.22)})}catch(e){}}
+function notifyNew(r){
+  if(document.hidden){unseen++;document.title='('+unseen+') New order \u2013 Airclub Clothing'}
+  beep();try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}
+  const on=!!r.addr,n=(r.items||[]).reduce((a,i)=>a+(i.q||1),0);
+  const old=document.getElementById('nb');if(old)old.remove();
+  const b=h('div',{id:'nb',style:'position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:30;background:var(--ac);color:var(--acx);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;cursor:pointer'},
+    h('div',{style:'flex:1'},h('b',{style:'display:block'},'New '+(on?'online':'shop')+' order'),h('span',{style:'font-size:14px'},(r.name||'Customer')+' \u00b7 '+n+' item'+(n>1?'s':'')+' \u00b7 '+(r.phone||''))),
+    h('button',{class:'btn o s',style:'color:inherit;border-color:currentColor',onclick:e=>{e.stopPropagation();b.remove()}},'\u2715'));
+  b.onclick=()=>{b.remove();tab='sales';sSec=on?'online':'shop';sSt='act';render()};
+  document.body.append(b);
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){unseen=0;document.title=BASETITLE}});
 function startListeners(user){
   unsubs.forEach(f=>f());unsubs=[];
   const re=()=>{const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;render()};
@@ -88,7 +105,8 @@ function startListeners(user){
   if(staffOK)unsubs.push(onSnapshot(query(collection(db,'visits'),where('date','>=',ymd(new Date(Date.now()-92*864e5)))),x=>{VI=x.docs.map(d=>d.data());re()},e=>console.log(e)));
   if(staffOK)unsubs.push(onSnapshot(collection(db,'addresses'),x=>{AD=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>(b.time||0)-(a.time||0));re()},e=>console.log(e)));
   const rq=staffOK?collection(db,'requests'):query(collection(db,'requests'),where('uid','==',user.uid));
-  unsubs.push(onSnapshot(rq,x=>{S.requests=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>b.time-a.time);snap.requests={};S.requests.forEach(r=>snap.requests[r.id]=JSON.stringify(r));re()},e=>console.log(e)));
+  let firstReq=true;
+  unsubs.push(onSnapshot(rq,x=>{if(staffOK&&!firstReq){x.docChanges().forEach(c=>{if(c.type==='added'&&!c.doc.metadata.hasPendingWrites)notifyNew(c.doc.data())})}firstReq=false;S.requests=x.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>b.time-a.time);snap.requests={};S.requests.forEach(r=>snap.requests[r.id]=JSON.stringify(r));re()},e=>console.log(e)));
 }
 onAuthStateChanged(auth,async user=>{
   if(!user){await signInAnonymously(auth).catch(e=>{root.textContent='Could not start: '+e.message});return}
