@@ -355,6 +355,7 @@ function salesView(){
     h('p',{class:'mu'},(sSec==='online'?'Online customers':'Shop customers')+' \u00b7 '+(sSt==='done'?'Completed':'Active')),
     reqs(sSt==='done',sSec));
 }
+const tel=n=>{n=String(n||'').replace(/\D/g,'');return 'tel:'+(n.length===10?'+91'+n:(n.startsWith('+')?n:'+'+n))};
 function reqs(dn,sec){
   const L=S.requests.filter(r=>(r.status==='Collected')===!!dn&&(sec==='online'?!!r.addr:!r.addr));
   if(!L.length)return h('p',{class:'mu'},dn?'No completed orders yet.':'No active requests.');
@@ -364,7 +365,7 @@ function reqs(dn,sec){
     r.addr?h('div',{class:'mu'},'Deliver to: '+addrLines(r.addr).join(', ')+' - '+r.addr.pin+(r.addr.phone2?' · Alt: '+r.addr.phone2:'')):'',
     r.note?h('div',{class:'note'},'Note: '+r.note):'',
     h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size+((i.q||1)>1?' x'+i.q:''),h('br'),i.loc||'',h('br'),h('button',{class:'btn s'+(i.sold?'':' o'),onclick:()=>soldToggle(r,i)},i.sold?'Sold ✓':'Mark sold')))),
-    h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
+    h('a',{class:'btn s',href:tel(r.phone)},'Call '+r.phone),' ',(r.addr&&r.addr.phone2)?[h('a',{class:'btn s o',href:tel(r.addr.phone2)},'Call alt '+r.addr.phone2),' ']:'',h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
 }
 function cusView(){
   const m=new Map();CU.forEach(c=>{if(c.phone&&!m.has(c.phone))m.set(c.phone,c)});const L=[...m.values()];
