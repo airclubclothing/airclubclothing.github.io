@@ -168,7 +168,7 @@ const img=p=>p&&p.img?{style:'background-image:url('+p.img+')'}:{};
 function ph(p){const e=h('div',Object.assign({class:'ph'},img(p)),p&&p.img?'':(p?p.code:'?'));if(p&&p.img&&p.id){e.style.cursor='zoom-in';e.onclick=ev=>{ev.stopPropagation();openZoom2(p)}}const n=p?photosOf(p).length:0;if(n>1)e.append(h('span',{class:'bd'},n+' photos'));return e}
 function render(){if(!ready){root.textContent='Loading…';return}
   if(C&&auth.currentUser&&!staffOK){const j=JSON.stringify(basket);if(j!==lastB){lastB=j;setDoc(doc(db,'customers',auth.currentUser.uid),{basket},{merge:true}).catch(()=>{})}}
-  document.getElementById('m2').style.display=(location.hash==='#staff'||staffOK)?'':'none';document.getElementById('bk').style.display=mode==='cust'?'':'none';document.getElementById('bn').textContent=bc();root.replaceChildren(mode==='cust'?(panel?mine():shop()):staff())}
+  document.getElementById('m2').style.display=(location.hash==='#staff'||staffOK)?'':'none';document.getElementById('bk').style.display=mode==='cust'?'':'none';document.getElementById('bn').textContent=bc();root.replaceChildren(mode==='cust'?(panel?mine():shop()):staff());if(mode==='cust'&&pop&&!document.getElementById('codpop'))codPopup()}
 document.getElementById('m1').onclick=()=>{mode='cust';panel=false;render()};
 document.getElementById('m2').onclick=()=>{mode='staff';render()};
 document.getElementById('bk').onclick=()=>{panel=!panel;done=null;ptab=null;render()};
@@ -243,7 +243,7 @@ function login(){
   return h('div',{class:'box'},h('b',{},'Ordered before?'),h('p',{class:'mu'},'Enter the mobile number you used, to see your earlier orders.'),p,h('div',{class:'row'},h('button',{class:'btn s',onclick:async()=>{try{await identify('',p.value,false);ptab='orders';render()}catch(e){alert(e.message||e.code)}}},'Show my orders')));
 }
 function shop(){
-  if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+(done.addr?'. We have your address and will contact you to confirm your order.':'. We will keep everything ready for you at the shop.')),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{done=null;panel=true;ptab='orders';render()}},'View your orders'),h('button',{class:'btn o',onclick:()=>{done=null;render()}},'Pick more styles')));
+  if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+(done.addr?'. Your order is confirmed. Payment: Cash on Delivery.':'. We will keep everything ready for you at the shop.')),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{done=null;panel=true;ptab='orders';render()}},'View your orders'),h('button',{class:'btn o',onclick:()=>{done=null;render()}},'Pick more styles')));
   const list=S.products.filter(p=>(cat==='All'||p.cat===cat)&&(size==='All'||p.sizes.includes(size))&&(!q||(p.code+' '+p.name).toLowerCase().includes(q.toLowerCase())));
   const ord=Object.values(S.catSizes).flat();const allSizes=[...new Set(S.products.filter(p=>cat==='All'||p.cat===cat).flatMap(p=>p.sizes))].sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
   const inB=(id,s)=>basket.some(b=>b.pid===id&&b.size===s);
@@ -266,7 +266,7 @@ function send(extra){
   if(bs.some(b=>isOut(S.products.find(x=>x.id===b.pid),b.size))){alert('Some selected sizes are sold out. Please remove them.');return}
   const items=bs.map(b=>{const p=S.products.find(x=>x.id===b.pid);return{pid:p.id,code:p.code,name:p.name,cat:p.cat,size:b.size,q:b.q||1,loc:p.loc,t:p.img||'',price:p.price||''}});
   if(editing){const r=S.requests.find(x=>x.id===editing);if(r){r.items=items;r.bill=mkBill(items,r.addr?{addr:1}:null);r.note=note.trim();r.edited=Date.now();r.status='New'}done=r;editing=null}
-  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:C.name,phone:C.phone,time:Date.now(),status:'New',items,bill:mkBill(items,extra),note:note.trim()};if(extra&&extra.addr){r.addr=extra.addr;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);done=r}
+  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:C.name,phone:C.phone,time:Date.now(),status:'New',items,bill:mkBill(items,extra),note:note.trim()};if(extra&&extra.payment)r.payment=extra.payment;if(extra&&extra.addr){r.addr=extra.addr;pop=r;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);done=r}
   save();basket=[];note='';panel=false;adr={};adrStep='form';render();
 }
 function mine(){
@@ -280,6 +280,7 @@ function mine(){
     h('div',{class:'row',style:'justify-content:space-between'},h('b',{},'Order '+r.id+(r.edited?' \u00b7 edited':'')),h('span',{class:'st'},(r.status==='Collected'&&r.shipped?'Delivered':(STL[r.status]||r.status)))),
     h('div',{class:'mu'},fmt(r.time)+(r.edited?' \u00b7 updated '+fmt(r.edited):'')),
     h('div',{class:'mu'},r.items.length+' styles'),(S.cfg.showPrice&&r.bill&&r.bill.total>0)?h('div',{class:'mu'},'Total ₹'+(r.bill.final||r.bill.total)+(r.bill.delivery?' (incl. delivery ₹'+r.bill.delivery+')':'')+(r.bill.disc>0?' (you saved ₹'+r.bill.disc+')':'')):'',
+    r.payment==='COD'?h('div',{class:'mu'},'Payment: Cash on Delivery'):'',
     r.track?h('div',{class:'mu'},'Delivery info: '+r.track):'',
     r.note?h('div',{class:'note'},'Your note: '+r.note):'',
     r.items.map(i=>{const p=S.products.find(x=>x.id===i.pid);return h('div',{class:'row',style:'border-top:1px solid var(--bd);padding-top:8px'},h('div',{style:'width:56px;flex:none'},ph(p||{code:i.code,img:i.t})),h('div',{},h('b',{},i.name||i.code),h('div',{class:'mu'},i.code+' \u00b7 Size '+i.size+((i.q||1)>1?' \u00b7 Qty '+i.q:'')+(S.cfg.showPrice&&!tiersOf(i.cat).length&&(i.price||(p&&p.price))?' \u00b7 \u20b9'+(i.price||p.price):''))))}),
@@ -494,7 +495,28 @@ function barPrice(){
   return h('div',{style:'line-height:1.15;white-space:nowrap'},h('div',{style:'font-size:22px;font-weight:800;color:var(--bp)'},'\u20b9'+b.total),b.disc>0?h('div',{style:'font-size:11px;font-weight:600;color:var(--bp)'},h('s',{style:'font-weight:400;color:var(--mu);margin-right:4px'},'\u20b9'+b.mrp),'Save \u20b9'+b.disc):'');
 }
 let rv='pick';
-let adr={},adrStep='form';
+let adr={},adrStep='form',pop=null;
+function codPopup(){
+  const old=document.getElementById('codpop');if(old)old.remove();
+  if(!pop)return;
+  const r=pop,b=r.bill||{},a=r.addr||{},amt=b.final||b.total||0,n=(r.items||[]).reduce((s,i)=>s+(i.q||1),0),sp=S.cfg.showPrice&&b.total>0;
+  const row=(l,v,st)=>h('div',{style:'display:flex;justify-content:space-between;margin:4px 0;font-size:15px;'+(st||'')},h('span',{},l),h('span',{},v));
+  const close=()=>{pop=null;const e=document.getElementById('codpop');if(e)e.remove()};
+  const ov=h('div',{id:'codpop',style:'position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center'},
+    h('div',{style:'background:var(--card);color:var(--tx);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))'},
+      h('div',{style:'width:54px;height:54px;border-radius:50%;background:var(--ac);color:var(--acx);font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px'},'✓'),
+      h('h2',{style:'text-align:center;margin:0'},'Order confirmed!'),
+      h('p',{class:'mu',style:'text-align:center;margin:2px 0 0'},'Thank you, '+(r.name||'')+' · Order ID ',h('b',{},r.id)),
+      h('div',{style:'background:var(--bg);border:1px solid var(--ac);border-radius:10px;padding:9px 12px;margin-top:10px;font-size:14px;text-align:center'},h('b',{},'Payment: Cash on Delivery'),sp?h('div',{},'Please pay ',h('b',{},'₹'+amt),' when your parcel arrives'):h('div',{},'Please pay when your parcel arrives')),
+      h('div',{class:'box',style:'margin-top:10px;padding:11px 13px'},
+        row(n+(n>1?' pieces':' piece'),sp?'₹'+b.total:''),
+        b.disc>0?row('Offer discount applied','− ₹'+b.disc,'color:var(--ac)'):'',
+        b.delivery?row('Delivery','₹'+b.delivery):'',
+        sp?h('div',{style:'display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:6px;padding-top:8px;font-weight:800;font-size:19px'},h('span',{},'Total to pay'),h('span',{style:'color:var(--bp)'},'₹'+amt)):''),
+      h('div',{class:'box',style:'margin-top:8px;padding:10px 13px;font-size:14px'},h('span',{class:'mu'},'Deliver to'),h('div',{},addrLines(a).join(', ')+' - '+a.pin),h('div',{},'Ph: '+a.phone+(a.phone2?' / '+a.phone2:''))),
+      h('button',{class:'btn',style:'width:100%;margin-top:12px',onclick:close},'OK')));
+  document.body.append(ov);
+}
 const AF=[['name','Name *','e.g. Nikhil','name'],['house','House name or no. *','e.g. Rose Villa / 12/345','address-line1'],['street','Street *','e.g. MG Road','address-line2'],['landmark','Landmark *','e.g. Near bus stand, opposite SBI bank','off'],['city','City *','e.g. Kochi','address-level2'],['district','District *','e.g. Ernakulam','off'],['state','State *','e.g. Kerala','address-level1'],['pin','Pin code * (6 digit code of your post office)','e.g. Post office pin code, 682016','postal-code'],['phone','Mobile number 1 *','e.g. 9876543210','tel'],['phone2','Mobile number 2 (optional)','e.g. 9123456780','off']];
 function addrBody(){
   const dg=v=>String(v||'').replace(/\D/g,''),mb=v=>{let d=dg(v);if(d.length>10)d=d.slice(-10);return d},grp=p=>p.length===10?p.slice(0,5)+' '+p.slice(5):p;
@@ -505,21 +527,32 @@ function addrBody(){
       h('b',{style:'display:block;margin-top:14px'},'Are these correct?'),
       h('div',{class:'row',style:'flex-wrap:wrap'},
         h('button',{class:'btn o',onclick:()=>{adrStep='form';review()}},'No, edit my details'),
-        h('button',{class:'btn',onclick:async e=>{
-          const b=e.target;b.disabled=true;b.textContent='Sending…';
+        h('button',{class:'btn',onclick:()=>{adrStep='pay';review();window.scrollTo(0,0)}},'Yes, all correct'))];
+  }
+  if(adrStep==='pay'){
+    const b=calc(bl()),fin=b.total+(delCfg().on?delFor(bc()):0),amt=(S.cfg.showPrice&&b.total>0)?' · COD ₹'+fin:'';
+    const opt=(on,title,tagTxt,tagStyle,extra)=>h('div',{style:'border:'+(on?'2px solid var(--ac)':'1px solid var(--bd)')+';border-radius:14px;padding:12px;margin-top:10px;background:'+(on?'var(--card)':'var(--bg)')+';'+(on?'':'opacity:.6')},
+      h('div',{style:'display:flex;align-items:center;gap:10px'},h('span',{style:'width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid '+(on?'var(--ac)':'var(--mu)')},on?h('i',{style:'width:10px;height:10px;border-radius:50%;background:var(--ac)'}):''),h('b',{style:'flex:1;font-size:16px'},title),h('span',{style:'font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px;'+tagStyle},tagTxt)),extra||'');
+    return [h('h3',{style:'margin:16px 0 0'},'Delivery & payment'),
+      deliveryBox(),
+      opt(true,'Cash on Delivery','AVAILABLE','background:#ffd23f;color:#1c1b19',h('div',{class:'mu',style:'margin:6px 0 0 30px'},'Pay cash when your parcel reaches you.')),
+      opt(false,'Online Payment','COMING SOON','background:var(--bd);color:var(--mu)',h('div',{style:'display:flex;gap:6px;margin:8px 0 0 30px;flex-wrap:wrap'},['Google Pay','PhonePe','UPI'].map(x=>h('span',{style:'border:1px solid var(--bd);border-radius:8px;padding:2px 8px;font-size:13px;background:var(--card)'},x)))),
+      h('div',{class:'row',style:'flex-wrap:wrap'},
+        h('button',{class:'btn o',onclick:()=>{adrStep='form';review();window.scrollTo(0,0)}},'Back'),
+        h('button',{class:'btn',style:'flex:1',onclick:async e=>{
+          const bt=e.target;bt.disabled=true;bt.textContent='Placing order…';
           try{
             if(!C)await identify(adr.name.trim(),mb(adr.phone),true);
             const t=k=>String(adr[k]||'').trim();
             const a={name:t('name'),phone:mb(adr.phone),phone2:t('phone2')?mb(adr.phone2):'',house:t('house'),street:t('street'),landmark:t('landmark'),city:t('city'),district:t('district'),state:t('state'),pin:dg(adr.pin)};
-            send({addr:a});
-            if(b.isConnected){b.disabled=false;b.textContent='Yes, all correct'}
-          }catch(err){b.disabled=false;b.textContent='Yes, all correct';alert(err.message||err.code)}
-        }},'Yes, all correct'))];
+            send({addr:a,payment:'COD'});
+            if(bt.isConnected){bt.disabled=false;bt.textContent='Place order'+amt}
+          }catch(err){bt.disabled=false;bt.textContent='Place order'+amt;alert(err.message||err.code)}
+        }},'Place order'+amt))];
   }
   return [h('h3',{style:'margin:16px 0 0'},'Delivery address'),h('p',{class:'mu',style:'margin:2px 0 0'},'Fill your address to place this order.'),
     AF.map(([k,l,pl,ac])=>{const at={value:adr[k]||'',placeholder:pl,autocomplete:ac,oninput:e=>{adr[k]=e.target.value}};if(k==='pin'){at.inputmode='numeric';at.maxlength='6'}if(k==='phone'||k==='phone2')at.inputmode='tel';return [h('label',{},l),h('input',at)]}),
     h('label',{},'Note (optional)'),h('input',{placeholder:'e.g. need for a wedding, prefer dark colours',value:note,oninput:e=>{note=e.target.value}}),
-    deliveryBox(),
     h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{rv='pick';review()}},'Back'),h('button',{class:'btn',onclick:()=>{
       const need=[['name','your name'],['house','your house name or no.'],['street','your street'],['landmark','a landmark near your house'],['city','your city'],['district','your district'],['state','your state']];
       for(const [k,m] of need){if(!String(adr[k]||'').trim()){alert('Please enter '+m);return}}
@@ -527,7 +560,7 @@ function addrBody(){
       if(mb(adr.phone).length!==10){alert('Please enter a 10 digit mobile number');return}
       if(String(adr.phone2||'').trim()&&mb(adr.phone2).length!==10){alert('Mobile number 2 must be 10 digits, or leave it empty');return}
       adrStep='confirm';review();window.scrollTo(0,0)
-    }},'Send address'))];
+    }},'Next →'))];
 }
 function onlineMsg(){
   const L=basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{};return (i+1)+'. '+(p.name||'')+' ('+(p.code||'')+') - Size '+b.size+' - Qty '+(b.q||1)+(S.cfg.showPrice&&!tiersOf(p.cat).length&&p.price?' - \u20b9'+p.price:'')});
@@ -595,6 +628,7 @@ function reqs(dn,sec){
     h('div',{class:'row',style:'justify-content:space-between'},h('b',{},r.cid+' · '+r.name+(r.edited?' · edited':'')),h('span',{class:'st'},r.status)),
     h('div',{class:'mu'},r.phone+' · '+new Date(r.time).toLocaleString()+' · '+r.items.length+' items'),
     r.addr?h('div',{class:'mu'},'Deliver to: '+addrLines(r.addr).join(', ')+' - '+r.addr.pin+(r.addr.phone2?' · Alt: '+r.addr.phone2:'')):'',
+    r.payment==='COD'?h('div',{style:'display:inline-block;margin:6px 0;padding:4px 10px;border-radius:10px;background:#ffd23f;color:#1c1b19;font-weight:800;font-size:13px'},'COD · Collect ₹'+((r.bill&&(r.bill.final||r.bill.total))||0)+' on delivery'):'',
     r.note?h('div',{class:'note'},'Note: '+r.note):'',
     h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size+((i.q||1)>1?' x'+i.q:''),h('br'),i.loc||'',h('br'),h('button',{class:'btn s'+(i.sold?'':' o'),onclick:()=>soldToggle(r,i)},i.sold?'Sold ✓':'Mark sold')))),
     (r.bill&&r.bill.total>0?billStaff(r.bill):''),h('a',{class:'btn s',href:tel(r.phone)},'Call '+r.phone),' ',(r.addr&&r.addr.phone2)?[h('a',{class:'btn s o',href:tel(r.addr.phone2)},'Call alt '+r.addr.phone2),' ']:'',h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
