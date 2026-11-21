@@ -266,25 +266,26 @@ function chartsEditor(c){
   const L=chartsOf(c),ko='cat:'+c;
   const dt=(key,sum,...kids)=>h('details',Object.assign({ontoggle:e=>{e.target.open?chOpen.add(key):chOpen.delete(key)}},chOpen.has(key)?{open:''}:{}),h('summary',{style:'cursor:pointer;margin:10px 0'},sum),...kids);
   const one=ch=>{
-    const nm=h('input',{value:ch.name,placeholder:'e.g. Nelly',onchange:e=>{ch.name=e.target.value.trim()||'Chart';save();render()}});
-    const fi=h('input',{value:ch.fields.join(', '),placeholder:'e.g. Length, Chest, Shoulder, Sleeve',onchange:e=>{ch.fields=e.target.value.split(',').map(x=>x.trim()).filter(Boolean);save();render()}});
+    const cid=ch.id,cur=()=>chartsOf(c).find(x=>x.id===cid)||ch;
+    const nm=h('input',{value:ch.name,placeholder:'e.g. Nelly',onchange:e=>{cur().name=e.target.value.trim()||'Chart';save();render()}});
+    const fi=h('input',{value:ch.fields.join(', '),placeholder:'e.g. Length, Chest, Shoulder, Sleeve',onchange:e=>{cur().fields=e.target.value.split(',').map(x=>x.trim()).filter(Boolean);save();render()}});
     const sizes=S.catSizes[c]||[];
     return dt(c+':'+ch.id,ch.name+' ('+ch.fields.length+' columns)',
       h('label',{},'Chart name (only you see this, customers never see it)'),nm,
       h('label',{},'Measurement names, comma separated'),fi,
-      ch.fields.length?h('div',{style:'overflow-x:auto;margin-top:8px'},h('table',{style:'border-collapse:collapse'},h('tr',{},h('th',{},'Size'),ch.fields.map(f=>h('th',{style:'padding:2px 4px'},f))),sizes.map(s=>h('tr',{},h('td',{style:'padding:2px 6px;font-weight:600'},s),ch.fields.map(f=>h('td',{},h('input',{value:((ch.rows&&ch.rows[s])||{})[f]||'',style:'width:70px',inputmode:'decimal',onchange:e=>{ch.rows=ch.rows||{};ch.rows[s]=ch.rows[s]||{};ch.rows[s][f]=e.target.value.trim();save()}}))))))):h('p',{class:'mu'},'Add measurement names first.'),
-      h('div',{class:'row'},h('button',{class:'btn o s',onclick:()=>{const used=S.products.filter(p=>p.cat===c&&chartOf(p)===ch);if(!confirm('Delete chart '+ch.name+'?'+(used.length?' '+used.length+' product(s) use it and will have no size chart.':'')))return;used.forEach(p=>{p.chartId=''});S.catCharts[c]=chartsOf(c).filter(x=>x!==ch);save();render()}},'Delete chart')));
+      ch.fields.length?h('div',{style:'overflow-x:auto;margin-top:8px'},h('table',{style:'border-collapse:collapse'},h('tr',{},h('th',{},'Size'),ch.fields.map(f=>h('th',{style:'padding:2px 4px'},f))),sizes.map(s=>h('tr',{},h('td',{style:'padding:2px 6px;font-weight:600'},s),ch.fields.map(f=>h('td',{},h('input',{value:((ch.rows&&ch.rows[s])||{})[f]||'',style:'width:70px',inputmode:'decimal',onchange:e=>{const k=cur();k.rows=k.rows||{};k.rows[s]=k.rows[s]||{};k.rows[s][f]=e.target.value.trim();save()}}))))))):h('p',{class:'mu'},'Add measurement names first.'),
+      h('div',{class:'row'},h('button',{class:'btn o s',onclick:()=>{const used=S.products.filter(p=>p.cat===c&&(chartOf(p)||{}).id===cid);if(!confirm('Delete chart '+cur().name+'?'+(used.length?' '+used.length+' product(s) use it and will have no size chart.':'')))return;used.forEach(p=>{p.chartId=''});S.catCharts[c]=chartsOf(c).filter(x=>x.id!==cid);save();render()}},'Delete chart')));
   };
   const nn=h('input',{placeholder:'New chart name, e.g. Nelly'});
   return dt(ko,'Size charts ('+L.length+')',
     h('p',{class:'mu',style:'font-size:12px'},'One chart per brand. Pick the chart when you add a product. Customers only see the measurements, never the chart name.'),
     L.map(one),
     h('label',{},'Add size chart'),nn,
-    h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const n=nn.value.trim();if(!n){alert('Enter a chart name');return}S.catCharts=S.catCharts||{};const id='c'+Date.now().toString(36);S.catCharts[c]=[...L,{id,name:n,fields:L[0]?L[0].fields.slice():[],rows:{}}];chOpen.add(c+':'+id);chOpen.add(ko);save();render()}},'Add chart')));
+    h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const n=nn.value.trim();if(!n){alert('Enter a chart name');return}S.catCharts=S.catCharts||{};const id='c'+Date.now().toString(36);const Lc=chartsOf(c);S.catCharts[c]=[...Lc,{id,name:n,fields:Lc[0]?Lc[0].fields.slice():[],rows:{}}];chOpen.add(c+':'+id);chOpen.add(ko);save();render()}},'Add chart')));
 }
 function prodChart(p){
   const L=chartsOf(p.cat),cur=p.chartId===undefined?'default':p.chartId;
-  const sl=h('select',{onchange:e=>{p.chartId=e.target.value;save();render()}},h('option',{value:''},'No size chart'),L.map(x=>h('option',{value:x.id},x.name)));
+  const sl=h('select',{onchange:e=>{const P=S.products.find(x=>x.id===p.id)||p;P.chartId=e.target.value;save();render()}},h('option',{value:''},'No size chart'),L.map(x=>h('option',{value:x.id},x.name)));
   sl.value=L.some(x=>x.id===cur)?cur:'';
   return h('div',{},h('label',{},'Size chart (customers do not see the name)'),sl);
 }
