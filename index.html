@@ -63,7 +63,7 @@ const auth=getAuth(app),db=getFirestore(app);
 function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(k==='class')e.className=a[k];else if(k.slice(0,2)==='on')e[k]=a[k];else e.setAttribute(k,a[k])}c.flat(9).forEach(x=>e.append(x&&x.nodeType?x:document.createTextNode(x===false||x==null?'':x)));return e}
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
-const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},catMeasures:{Shirts:['Length','Chest','Shoulder','Sleeve'],'T-Shirts':['Length','Chest','Shoulder','Sleeve'],Jeans:['Waist','Length','Hip','Thigh']},catChart:{},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,unit:'in',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
+const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},catMeasures:{Shirts:['Length','Chest','Shoulder','Sleeve'],'T-Shirts':['Length','Chest','Shoulder','Sleeve'],Jeans:['Waist','Length','Hip','Thigh']},catChart:{},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,adOn:false,unit:'in',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
 let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='req',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
@@ -177,7 +177,7 @@ function login(){
   return h('div',{class:'box'},h('b',{},'Ordered before?'),h('p',{class:'mu'},'Enter the mobile number you used, to see your earlier orders.'),p,h('div',{class:'row'},h('button',{class:'btn s',onclick:async()=>{try{await identify('',p.value,false);ptab='orders';render()}catch(e){alert(e.message||e.code)}}},'Show my orders')));
 }
 function shop(){
-  if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+'. We will keep everything ready for you at the shop.'),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{done=null;panel=true;ptab='orders';render()}},'View your orders'),h('button',{class:'btn o',onclick:()=>{done=null;render()}},'Pick more styles')));
+  if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+(done.addr?'. We have your address and will contact you to confirm your order.':'. We will keep everything ready for you at the shop.')),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{done=null;panel=true;ptab='orders';render()}},'View your orders'),h('button',{class:'btn o',onclick:()=>{done=null;render()}},'Pick more styles')));
   const list=S.products.filter(p=>(cat==='All'||p.cat===cat)&&(size==='All'||p.sizes.includes(size))&&(!q||(p.code+' '+p.name).toLowerCase().includes(q.toLowerCase())));
   const ord=Object.values(S.catSizes).flat();const allSizes=[...new Set(S.products.filter(p=>cat==='All'||p.cat===cat).flatMap(p=>p.sizes))].sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
   const inB=(id,s)=>basket.some(b=>b.pid===id&&b.size===s);
@@ -194,14 +194,14 @@ function shop(){
     h('div',{class:'bar'},barLeft(),h('button',{class:'btn',onclick:()=>{rv='pick';review()}},'Review & send')));
 }
 const STL={'New':'Sent to shop','Packing':'Being packed','Ready at shop':'Ready at shop','Delivering':'Out for delivery','Collected':'Collected'};
-function send(){
+function send(extra){
   const bs=basket.filter(b=>S.products.some(x=>x.id===b.pid));if(!bs.length){alert('Please pick at least one style');return}
   if(bs.some(b=>{const p=S.products.find(x=>x.id===b.pid);return p.stock&&p.stock[b.size]!==undefined&&(b.q||1)>Number(p.stock[b.size])})){alert('Some quantities are more than the available stock. Please reduce them.');return}
   if(bs.some(b=>isOut(S.products.find(x=>x.id===b.pid),b.size))){alert('Some selected sizes are sold out. Please remove them.');return}
   const items=bs.map(b=>{const p=S.products.find(x=>x.id===b.pid);return{pid:p.id,code:p.code,name:p.name,cat:p.cat,size:b.size,q:b.q||1,loc:p.loc,t:p.img||'',price:p.price||''}});
   if(editing){const r=S.requests.find(x=>x.id===editing);if(r){r.items=items;r.note=note.trim();r.edited=Date.now();r.status='New'}done=r;editing=null}
-  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:C.name,phone:C.phone,time:Date.now(),status:'New',items,note:note.trim()};S.requests.unshift(r);done=r}
-  save();basket=[];note='';panel=false;render();
+  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:C.name,phone:C.phone,time:Date.now(),status:'New',items,note:note.trim()};if(extra&&extra.addr){r.addr=extra.addr;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);done=r}
+  save();basket=[];note='';panel=false;adr={};adrStep='form';render();
 }
 function mine(){
   const my=C?S.requests.filter(r=>r.cid===C.id).sort((a,b)=>b.time-a.time):[];
@@ -263,6 +263,40 @@ function barLeft(){
   return h('div',{},h('div',{class:'mu',style:'font-size:12px;margin-bottom:4px'},p.code+' \u00b7 '+cur.size+' \u00b7 '+bc()+' selected'),qtyCtl(cur));
 }
 let rv='pick';
+let adr={},adrStep='form';
+const AF=[['name','Name *','e.g. Nikhil','name'],['house','House name or no. *','e.g. Rose Villa / 12/345','address-line1'],['street','Street *','e.g. MG Road','address-line2'],['landmark','Landmark *','e.g. Near bus stand, opposite SBI bank','off'],['city','City *','e.g. Kochi','address-level2'],['district','District *','e.g. Ernakulam','off'],['state','State *','e.g. Kerala','address-level1'],['pin','Pin code * (6 digit code of your post office)','e.g. Post office pin code, 682016','postal-code'],['phone','Mobile number 1 *','e.g. 9876543210','tel'],['phone2','Mobile number 2 (optional)','e.g. 9123456780','off']];
+function addrBody(){
+  const dg=v=>String(v||'').replace(/\D/g,''),mb=v=>{let d=dg(v);if(d.length>10)d=d.slice(-10);return d},grp=p=>p.length===10?p.slice(0,5)+' '+p.slice(5):p;
+  if(adrStep==='confirm'){
+    const bx=(l,v,hi,sm)=>h('div',{class:'box',style:'margin:8px 0;'+(hi?'border-color:var(--wn)':'')},h('div',{class:'mu'},l),h('div',{style:'font-size:'+(sm?'19':'26')+'px;font-weight:600;letter-spacing:.06em'},v));
+    return [h('h3',{style:'margin:16px 0 4px'},'Check your number and pin code'),h('p',{class:'mu',style:'margin:0 0 6px'},"A wrong number or pin code means your parcel can't reach you."),
+      bx('Mobile number 1',grp(mb(adr.phone)),1),String(adr.phone2||'').trim()?bx('Mobile number 2',grp(mb(adr.phone2)),0,1):'',bx('Pin code',dg(adr.pin),1),
+      h('b',{style:'display:block;margin-top:14px'},'Are these correct?'),
+      h('div',{class:'row',style:'flex-wrap:wrap'},
+        h('button',{class:'btn o',onclick:()=>{adrStep='form';review()}},'No, edit my details'),
+        h('button',{class:'btn',onclick:async e=>{
+          const b=e.target;b.disabled=true;b.textContent='Sending…';
+          try{
+            if(!C)await identify(adr.name.trim(),mb(adr.phone),true);
+            const t=k=>String(adr[k]||'').trim();
+            const a={name:t('name'),phone:mb(adr.phone),phone2:t('phone2')?mb(adr.phone2):'',house:t('house'),street:t('street'),landmark:t('landmark'),city:t('city'),district:t('district'),state:t('state'),pin:dg(adr.pin)};
+            send({addr:a});
+            if(b.isConnected){b.disabled=false;b.textContent='Yes, all correct'}
+          }catch(err){b.disabled=false;b.textContent='Yes, all correct';alert(err.message||err.code)}
+        }},'Yes, all correct'))];
+  }
+  return [h('h3',{style:'margin:16px 0 0'},'Delivery address'),h('p',{class:'mu',style:'margin:2px 0 0'},'Fill your address to place this order.'),
+    AF.map(([k,l,pl,ac])=>{const at={value:adr[k]||'',placeholder:pl,autocomplete:ac,oninput:e=>{adr[k]=e.target.value}};if(k==='pin'){at.inputmode='numeric';at.maxlength='6'}if(k==='phone'||k==='phone2')at.inputmode='tel';return [h('label',{},l),h('input',at)]}),
+    h('label',{},'Note (optional)'),h('input',{placeholder:'e.g. need for a wedding, prefer dark colours',value:note,oninput:e=>{note=e.target.value}}),
+    h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{rv='pick';review()}},'Back'),h('button',{class:'btn',onclick:()=>{
+      const need=[['name','your name'],['house','your house name or no.'],['street','your street'],['landmark','a landmark near your house'],['city','your city'],['district','your district'],['state','your state']];
+      for(const [k,m] of need){if(!String(adr[k]||'').trim()){alert('Please enter '+m);return}}
+      if(dg(adr.pin).length!==6){alert('Pin code must be 6 digits');return}
+      if(mb(adr.phone).length!==10){alert('Please enter a 10 digit mobile number');return}
+      if(String(adr.phone2||'').trim()&&mb(adr.phone2).length!==10){alert('Mobile number 2 must be 10 digits, or leave it empty');return}
+      adrStep='confirm';review();window.scrollTo(0,0)
+    }},'Send address'))];
+}
 function onlineMsg(){
   const L=basket.map((b,i)=>{const p=S.products.find(x=>x.id===b.pid)||{};return (i+1)+'. '+(p.name||'')+' ('+(p.code||'')+') - Size '+b.size+' - Qty '+(b.q||1)+(S.cfg.showPrice&&p.price?' - \u20b9'+p.price:'')});
   return 'Hi AIRCLUB CLOTHING, I would like to order these styles:\n'+L.join('\n')+'\nTotal: '+bc()+' pieces'+(note.trim()?'\nNote: '+note.trim():'')+'\nPlease confirm availability and delivery details.';
@@ -270,7 +304,7 @@ function onlineMsg(){
 function review(){
   if(!basket.length){alert('Please pick at least one style');return}
   const view=editing?'shop':rv;
-  const waOn=!!S.cfg.waOn,igOn=!!S.cfg.igOn;
+  const waOn=!!S.cfg.waOn,igOn=!!S.cfg.igOn,adOn=!!S.cfg.adOn;
   const open=u=>{const w=window.open(u,'_blank');if(!w)location.href=u};
   const waN=()=>{let n=String(S.cfg.wa||S.cfg.phone||'').replace(/\D/g,'');if(n.length===10)n='91'+n;return n};
   const nm=h('input',{placeholder:'Your name or nickname'}),pn=h('input',{placeholder:'Mobile number',inputmode:'tel'});
@@ -281,7 +315,7 @@ function review(){
     body=[h('h3',{style:'margin:16px 0 4px'},'How will you order?'),h('p',{class:'mu',style:'margin:0 0 10px'},'Choose one'),
       h('div',{class:'two'},
         h('button',{class:'pick',onclick:()=>{rv='shop';review()}},h('b',{},'Shop customer'),h('div',{class:'mu'},'I will visit the shop. Keep these ready for me.')),
-        (waOn||igOn)?h('button',{class:'pick',onclick:()=>{if(waOn&&!igOn){const n=waN();if(!n){alert('Shop WhatsApp number is not set yet.');return}open('https://wa.me/'+n+'?text='+encodeURIComponent(onlineMsg()))}else{rv='online';review()}}},h('b',{},'Online customer'),h('div',{class:'mu'},waOn&&!igOn?'I will order on WhatsApp.':(igOn&&!waOn?'I will order on Instagram.':'I will order through WhatsApp or Instagram.'))):''),
+        (waOn||igOn||adOn)?h('button',{class:'pick',onclick:()=>{if(adOn){rv='addr';review();return}if(waOn&&!igOn){const n=waN();if(!n){alert('Shop WhatsApp number is not set yet.');return}open('https://wa.me/'+n+'?text='+encodeURIComponent(onlineMsg()))}else{rv='online';review()}}},h('b',{},'Online customer'),h('div',{class:'mu'},adOn?'I will order by giving my address.':waOn&&!igOn?'I will order on WhatsApp.':(igOn&&!waOn?'I will order on Instagram.':'I will order through WhatsApp or Instagram.'))):''),
       h('div',{class:'row'},h('button',{class:'btn o',onclick:render},'Back'))];
   }else if(view==='shop'){
     body=[h('h3',{style:'margin:16px 0 0'},editing?'Edit your order':'Shop customer'),
@@ -289,6 +323,8 @@ function review(){
       noteBox(),
       C?'':h('p',{class:'mu',style:'font-size:12px'},'Used only to prepare your selection at the shop. Next time, enter the same number to see your orders.'),
       h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{if(editing)render();else{rv='pick';review()}}},'Back'),h('button',{class:'btn',onclick:async()=>{if(!C){if(!nm.value.trim()||pn.value.replace(/\D/g,'').length<8){alert('Please enter your name and a valid mobile number');return}try{await identify(nm.value.trim(),pn.value,true)}catch(e){alert(e.message||e.code);return}}send()}},editing?'Update order':'Send to shop'))];
+  }else if(view==='addr'){
+    body=addrBody();
   }else{
     const prev=h('div',{class:'msg'},onlineMsg()),st=h('p',{class:'mu',style:'font-size:13px'},'');
     body=[h('h3',{style:'margin:16px 0 0'},'Online customer'),h('p',{class:'mu',style:'margin:2px 0 0'},'Your message is ready. Send it to us on WhatsApp or Instagram and we will confirm your order.'),
@@ -314,6 +350,7 @@ function reqs(dn){
   return h('div',{},L.map(r=>h('div',{class:'box'},
     h('div',{class:'row',style:'justify-content:space-between'},h('b',{},r.cid+' · '+r.name+(r.edited?' · edited':'')),h('span',{class:'st'},r.status)),
     h('div',{class:'mu'},r.phone+' · '+new Date(r.time).toLocaleString()+' · '+r.items.length+' items'),
+    r.addr?h('div',{class:'mu'},'Deliver to: '+addrLines(r.addr).join(', ')+' - '+r.addr.pin+(r.addr.phone2?' · Alt: '+r.addr.phone2:'')):'',
     r.note?h('div',{class:'note'},'Note: '+r.note):'',
     h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size+((i.q||1)>1?' x'+i.q:''),h('br'),i.loc||'',h('br'),h('button',{class:'btn s'+(i.sold?'':' o'),onclick:()=>soldToggle(r,i)},i.sold?'Sold ✓':'Mark sold')))),
     h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
@@ -344,7 +381,7 @@ function tg(k,l){const c=h('input',{type:'checkbox',style:'width:auto',onchange:
 function setView(){
   const f=(k,l,pl)=>[h('label',{},l),h('input',{value:S.cfg[k]||'',placeholder:pl,onchange:e=>{S.cfg[k]=e.target.value.trim();save()}})];
   const pc=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{S.cfg.showPrice=e.target.checked;save()}});pc.checked=!!S.cfg.showPrice;
-  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),tg('waOn','Enable WhatsApp ordering (online customers)'),f('wa','Shop WhatsApp number (with country code)','e.g. 919876543210'),tg('igOn','Enable Instagram ordering (online customers)'),f('ig','Instagram username (without @)','airclub.clothing'),h('label',{},'Show prices to customers'),pc,h('label',{},'Measurement unit'),(()=>{const sl=h('select',{onchange:e=>{S.cfg.unit=e.target.value;save()}},h('option',{value:'in'},'Inches'),h('option',{value:'cm'},'Centimetres'));sl.value=S.cfg.unit||'in';return sl})(),h('p',{class:'mu'},'Changes save automatically.'));
+  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),tg('waOn','Enable WhatsApp ordering (online customers)'),f('wa','Shop WhatsApp number (with country code)','e.g. 919876543210'),tg('igOn','Enable Instagram ordering (online customers)'),f('ig','Instagram username (without @)','airclub.clothing'),tg('adOn','Enable address form ordering (online customers)'),h('label',{},'Show prices to customers'),pc,h('label',{},'Measurement unit'),(()=>{const sl=h('select',{onchange:e=>{S.cfg.unit=e.target.value;save()}},h('option',{value:'in'},'Inches'),h('option',{value:'cm'},'Centimetres'));sl.value=S.cfg.unit||'in';return sl})(),h('p',{class:'mu'},'Changes save automatically.'));
 }
 function addrLines(a){return [a.house,a.street,a.landmark?'Near '+a.landmark:'',[a.city,a.district&&a.district!==a.city?a.district:''].filter(Boolean).join(', '),a.state].filter(Boolean)}
 function labelEl(a){const big=addrLines(a).join(' ').length>120;return h('div',{class:'lb'},h('div',{style:'display:flex;flex-direction:column;height:100%;border:2px solid #000;padding:.14in'},
