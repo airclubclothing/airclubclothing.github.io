@@ -49,6 +49,38 @@ input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10
 #pa{display:none}.lb{box-sizing:border-box;padding:.1in;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;break-after:page;page-break-after:always;overflow:hidden}.lb:last-child{break-after:auto;page-break-after:auto}@media print{html,body{background:#fff!important;margin:0!important;padding:0!important}:root{padding:0!important}}
 .two{display:flex;gap:10px}.pick{flex:1;text-align:left;border:1px solid var(--bd);background:var(--card);border-radius:12px;padding:14px;color:var(--tx);cursor:pointer;font:inherit}.pick b{font-size:17px}
 .msg{white-space:pre-wrap;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;font-size:14px;margin:8px 0}
+
+.ofs{margin:14px 0}
+.ofsh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.ofsh b{font-size:16px;letter-spacing:.05em}
+.oflv{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--pr);letter-spacing:.08em}
+.ofdot{width:8px;height:8px;border-radius:50%;background:#ff4d4d;animation:ofpl 1.4s ease-in-out infinite}
+@keyframes ofpl{0%,100%{box-shadow:0 0 0 0 rgba(255,77,77,.6)}50%{box-shadow:0 0 0 6px rgba(255,77,77,0)}}
+.ofh{border-radius:18px;padding:16px 16px 14px;position:relative;overflow:hidden;min-height:170px;transition:background .5s;color:#fff}
+.ofh:before{content:"";position:absolute;top:0;bottom:0;width:60px;left:-80px;background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);transform:skewX(-18deg);animation:ofsn 4.5s ease-in-out infinite}
+@keyframes ofsn{0%{left:-80px}40%,100%{left:120%}}
+.ofrb{position:absolute;top:14px;right:-34px;background:#ffd23f;color:#1c1b19;font-size:12px;font-weight:800;padding:4px 40px;transform:rotate(35deg);letter-spacing:.03em;text-transform:uppercase}
+.ofch{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.12em;background:rgba(255,255,255,.18);border-radius:20px;padding:3px 10px;text-transform:uppercase}
+.offo{font-size:15px;font-weight:700;letter-spacing:.1em;margin:12px 0 0;opacity:.95;text-transform:uppercase}
+.ofpr{font-size:54px;font-weight:900;line-height:1;margin:2px 0 4px;color:#ffd23f;text-shadow:0 3px 14px rgba(0,0,0,.28)}
+.ofds{font-size:13px;margin:0 0 10px;color:rgba(255,255,255,.85);max-width:230px}
+.ofen{display:inline-flex;font-size:12px;font-weight:600;background:rgba(0,0,0,.28);border-radius:20px;padding:4px 10px}
+.ofpg{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.15)}
+.ofpg i{display:block;height:100%;width:0;background:#ffd23f;animation:ofpgk 4s linear forwards}
+@keyframes ofpgk{to{width:100%}}
+.ofvp{overflow:hidden;margin:12px -16px 0;padding:6px 0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.oftk{display:flex;width:max-content;animation:ofmv 20s linear infinite}
+.ofvp:active .oftk,.ofvp:hover .oftk{animation-play-state:paused}
+@keyframes ofmv{to{transform:translateX(-50%)}}
+.ofcd{flex:none;width:126px;margin-right:9px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:13px 11px 11px;cursor:pointer;text-align:left;color:var(--tx);position:relative;overflow:hidden;font:inherit}
+.ofcd:before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--k)}
+.ofcd.on{border-color:var(--k);box-shadow:0 0 0 1px var(--k) inset}
+.ofcc{font-size:10px;letter-spacing:.1em;color:var(--k);margin:0;font-weight:700;text-transform:uppercase}
+.ofcf{font-size:13px;margin:5px 0 0;text-transform:lowercase}
+.ofcp{font-size:22px;font-weight:800;margin:1px 0 0}
+.ofcs{font-size:11px;font-weight:600;color:var(--pr);margin:2px 0 0}
+.ofbv{position:absolute;top:8px;right:8px;font-size:9px;font-weight:800;letter-spacing:.06em;background:#ffd23f;color:#1c1b19;border-radius:8px;padding:2px 6px}
+@media (prefers-reduced-motion:reduce){.ofh:before,.ofdot,.ofpg i,.oftk{animation:none}.ofvp{overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -202,7 +234,7 @@ function shop(){
   const ord=Object.values(S.catSizes).flat();const allSizes=[...new Set(S.products.filter(p=>cat==='All'||p.cat===cat).flatMap(p=>p.sizes))].sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
   const inB=(id,s)=>basket.some(b=>b.pid===id&&b.size===s);
   return h('div',{},
-    (S.cfg.offers||'').trim()?h('div',{class:'box',style:'border-color:var(--ac)'},h('b',{},S.cfg.offerTitle||'Offers'),(S.cfg.offers||'').split('\n').filter(l=>l.trim()).map(l=>h('div',{style:'margin-top:4px'},l.trim()))):'',
+    offersSection(),
     editing?h('p',{class:'note'},'Editing request '+editing+': remove or add styles, then tap Review & send to update.'):'',
     h('p',{class:'mu'},(C?'Hi '+C.name+' ('+C.id+') · ':'')+'tap a size to add a style',C?[' · ',h('a',{href:'#',style:'color:inherit;text-decoration:underline',onclick:e=>{e.preventDefault();basket=[];lastB='[]';C=null;signOut(auth)}},'Not you? Log out')]:''),
     h('input',{id:'sq',placeholder:'Search model code or name',value:q,oninput:e=>{q=e.target.value;render();const x=document.getElementById('sq');x.focus();x.setSelectionRange(q.length,q.length)}}),
@@ -329,6 +361,76 @@ function pricesEditor(c){
     rows,
     h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const a=cur().slice(),tt=tiersOf(c);a.push(tt.length?tt[tt.length-1]+extraRate(tt):0);setP(a)}},t.length?'+ Add piece':'Start offer pricing'),t.length?h('button',{class:'btn o s',onclick:()=>{const a=cur().slice();a.pop();setP(a)}},'\u2212 Remove last'):''),
     tv.length?h('div',{class:'note',style:'margin-top:10px'},'After '+tv.length+' pieces, each extra piece = \u20b9'+extraRate(tv)+' (automatic). '+prev):'');
+}
+
+let offerCur=0,offerTimer=null;
+const OFC=[{k:'#3fd1b5',g:'linear-gradient(135deg,#0f6b5c,#12342f)'},{k:'#6aa9ff',g:'linear-gradient(135deg,#2a52a3,#141f45)'},{k:'#ff7ab8',g:'linear-gradient(135deg,#7a2f8f,#2a1642)'},{k:'#ffb84d',g:'linear-gradient(135deg,#9a5a12,#3a2208)'},{k:'#b794f6',g:'linear-gradient(135deg,#4b2f8f,#1f1642)'}];
+const OCN=['Green','Blue','Pink','Orange','Purple'];
+const offerCards=()=>(S.cfg.offerCards||[]).filter(c=>c&&(c.price||c.big||c.label));
+const ofCol=(c,i)=>OFC[((c.color!=null&&c.color!==''?Number(c.color):i)||0)%OFC.length];
+const ofP=v=>{v=String(v||'').trim();return /^\d+$/.test(v)?'\u20b9'+v:v};
+function ofCountdown(){const e=document.getElementById('ofen');if(!e)return;const t=S.cfg.offerEnds?new Date(S.cfg.offerEnds).getTime():0,sec=t?Math.floor((t-Date.now())/1000):0;if(!(sec>0)){e.style.display='none';return}e.style.display='';const d=Math.floor(sec/86400),hh=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60);e.textContent='Ends in '+d+'d '+hh+'h '+(m<10?'0':'')+m+'m'}
+function offerMark(){document.querySelectorAll('.ofcd').forEach(b=>b.classList.toggle('on',+b.getAttribute('data-i')===offerCur))}
+function offerHero(){
+  const el=document.getElementById('ofh'),L=offerCards();if(!el||!L.length)return;
+  if(offerCur>=L.length)offerCur=0;
+  const c=L[offerCur],p=ofCol(c,offerCur);
+  el.style.background=p.g;
+  el.replaceChildren(c.save?h('div',{class:'ofrb'},c.save):'',h('span',{class:'ofch'},c.label||'Offer'),c.big?h('p',{class:'offo'},c.big):'',h('p',{class:'ofpr'},ofP(c.price)),c.desc?h('p',{class:'ofds'},c.desc):'',h('span',{class:'ofen',id:'ofen'}),L.length>1?h('div',{class:'ofpg'},h('i',{})):'');
+  ofCountdown();
+}
+function ofCard(c,i){const p=ofCol(c,i);return h('button',{class:'ofcd',style:'--k:'+p.k,'data-i':String(i),onclick:()=>{offerCur=i;offerHero();offerMark();startOfferTimer()}},c.best?h('span',{class:'ofbv'},'BEST VALUE'):'',h('p',{class:'ofcc'},c.label||''),h('p',{class:'ofcf'},c.big||''),h('p',{class:'ofcp'},ofP(c.price)),c.save?h('p',{class:'ofcs'},c.save):'')}
+function ofSizeStrip(){
+  const tk=document.getElementById('oftk'),vp=document.getElementById('ofvp'),L=offerCards();if(!tk||!vp||!L.length)return;
+  let half=tk.scrollWidth/2;
+  if(half>0&&vp.clientWidth>0&&half<vp.clientWidth){const reps=Math.ceil(vp.clientWidth/half),nodes=[];for(let r=0;r<reps*2;r++)L.forEach((c,i)=>nodes.push(ofCard(c,i)));tk.replaceChildren(...nodes);half=tk.scrollWidth/2}
+  const v=Number(S.cfg.offerSpeed)||5;
+  tk.style.animationDuration=(Math.max(half,1)/(8+v*10))+'s';
+  offerMark();
+}
+function startOfferTimer(){clearInterval(offerTimer);offerTimer=setInterval(()=>{const L=offerCards();if(L.length>1&&document.getElementById('ofh')){offerCur=(offerCur+1)%L.length;offerHero();offerMark()}},4000)}
+function offersSection(){
+  const L=offerCards();if(!L.length)return '';
+  if(offerCur>=L.length)offerCur=0;
+  const w=h('div',{class:'ofs'},
+    h('div',{class:'ofsh'},h('b',{},S.cfg.offerTitle||'Offers'),h('span',{class:'oflv'},h('span',{class:'ofdot'}),'LIVE NOW')),
+    h('div',{class:'ofh',id:'ofh'}),
+    h('div',{class:'ofvp',id:'ofvp'},h('div',{class:'oftk',id:'oftk'},L.map(ofCard),L.map(ofCard))));
+  setTimeout(()=>{offerHero();ofSizeStrip()},0);
+  return w;
+}
+startOfferTimer();setInterval(ofCountdown,30000);
+function offersEditor(){
+  const L=S.cfg.offerCards||[];
+  const upd=(id,fn)=>{const c=(S.cfg.offerCards||[]).find(x=>x.id===id);if(c){fn(c);save();render()}};
+  const fld=(c,key,label,ph)=>[h('label',{},label),h('input',{value:c[key]||'',placeholder:ph,onchange:e=>upd(c.id,x=>{x[key]=e.target.value.trim()})})];
+  const one=(c,i)=>{
+    const cs=h('select',{onchange:e=>upd(c.id,x=>{x.color=e.target.value})},h('option',{value:''},'Automatic'),OCN.map((n,k)=>h('option',{value:String(k)},n)));
+    cs.value=c.color==null?'':String(c.color);
+    const bv=h('input',{type:'checkbox',style:'width:auto',onchange:e=>upd(c.id,x=>{x.best=e.target.checked})});bv.checked=!!c.best;
+    const mv=d=>{const a=(S.cfg.offerCards||[]).slice(),j=a.findIndex(x=>x.id===c.id),k=j+d;if(j<0||k<0||k>=a.length)return;[a[j],a[k]]=[a[k],a[j]];S.cfg.offerCards=a;save();render()};
+    return dtl('of:'+c.id,(i+1)+'. '+(c.label||'Box')+(c.price?' \u00b7 '+ofP(c.price):''),
+      fld(c,'label','Small heading, e.g. SHIRTS','e.g. SHIRTS'),
+      fld(c,'big','Text above the price, e.g. 3 FOR','e.g. 3 FOR'),
+      fld(c,'price','Price, e.g. 999','e.g. 999'),
+      fld(c,'save','Small line, e.g. Save \u20b9198','e.g. Save \u20b9198'),
+      fld(c,'desc','Banner description (optional)','e.g. Pick any 3 shirt models'),
+      h('label',{},'Colour'),cs,
+      h('label',{style:'display:flex;align-items:center;gap:8px;margin-top:8px'},bv,'Show BEST VALUE badge'),
+      h('div',{class:'row'},h('button',{class:'btn o s',onclick:()=>mv(-1)},'Move earlier'),h('button',{class:'btn o s',onclick:()=>mv(1)},'Move later'),h('button',{class:'btn o s',onclick:()=>{if(!confirm('Delete this box?'))return;S.cfg.offerCards=(S.cfg.offerCards||[]).filter(x=>x.id!==c.id);save();render()}},'Delete')));
+  };
+  const sp=h('input',{type:'range',min:'1',max:'10',value:String(S.cfg.offerSpeed||5),style:'width:100%',onchange:e=>{S.cfg.offerSpeed=Number(e.target.value);save();render()}});
+  const en=h('input',{type:'datetime-local',value:S.cfg.offerEnds||'',onchange:e=>{S.cfg.offerEnds=e.target.value;save();render()}});
+  const nf=['label','big','price','save','desc'],nph=['Small heading, e.g. SHIRTS','Text above price, e.g. 3 FOR','Price, e.g. 999','Small line, e.g. Save \u20b9198','Banner description (optional)'];
+  const ni=nf.map((k,j)=>h('input',{placeholder:nph[j]}));
+  return dtl('of:main','Offer boxes on home page ('+L.length+')',
+    h('p',{class:'mu',style:'font-size:12px'},'Boxes show in this order and keep moving in a loop. Nothing shows until you add a box.'),
+    h('label',{},'Strip speed (1 = slow, 10 = fast)'),sp,
+    h('label',{},'Offer ends on (optional, shows a countdown)'),en,
+    S.cfg.offerEnds?h('button',{class:'btn o s',onclick:()=>{S.cfg.offerEnds='';save();render()}},'Clear end date'):'',
+    L.map(one),
+    h('div',{class:'box',style:'margin-top:10px'},h('b',{},'Add a box'),ni,
+      h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{const o={id:'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),color:'',best:false};nf.forEach((k,j)=>{o[k]=ni[j].value.trim()});if(!o.price&&!o.big){alert('Enter at least the price or the text above the price');return}S.cfg.offerCards=[...(S.cfg.offerCards||[]),o];chOpen.add('of:main');save();render()}},'Add box'))));
 }
 const bc=()=>basket.reduce((a,b)=>a+(b.q||1),0);
 function tapSize(pid,s){const i=basket.findIndex(b=>b.pid===pid&&b.size===s);if(i>=0){basket.splice(i,1);if(lastSel&&lastSel.pid===pid&&lastSel.size===s)lastSel=null}else{basket.push({pid,size:s,q:1});lastSel={pid,size:s}}}
@@ -478,7 +580,7 @@ function tg(k,l){const c=h('input',{type:'checkbox',style:'width:auto',onchange:
 function setView(){
   const f=(k,l,pl)=>[h('label',{},l),h('input',{value:S.cfg[k]||'',placeholder:pl,onchange:e=>{S.cfg[k]=e.target.value.trim();save()}})];
   const pc=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{S.cfg.showPrice=e.target.checked;save()}});pc.checked=!!S.cfg.showPrice;
-  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),(()=>{const ot=h('textarea',{rows:'5',style:'width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:inherit;font:inherit',placeholder:'One offer per line, e.g. 3 Shirts for ₹999',onchange:e=>{S.cfg.offers=e.target.value;save()}});ot.value=S.cfg.offers||'';return [h('label',{},'Offers (one per line, shown to customers at the top of the page)'),ot]})(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),tg('waOn','Enable WhatsApp ordering (online customers)'),f('wa','Shop WhatsApp number (with country code)','e.g. 919876543210'),tg('igOn','Enable Instagram ordering (online customers)'),f('ig','Instagram username (without @)','airclub.clothing'),tg('adOn','Enable address form ordering (online customers)'),h('label',{},'Show prices to customers'),pc,h('label',{},'Measurement unit'),(()=>{const sl=h('select',{onchange:e=>{S.cfg.unit=e.target.value;save()}},h('option',{value:'in'},'Inches'),h('option',{value:'cm'},'Centimetres'));sl.value=S.cfg.unit||'in';return sl})(),h('p',{class:'mu'},'Changes save automatically.'));
+  return h('div',{class:'box'},h('h3',{},'Shop settings'),f('offerTitle','Offers heading','e.g. Offers'),offersEditor(),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),tg('waOn','Enable WhatsApp ordering (online customers)'),f('wa','Shop WhatsApp number (with country code)','e.g. 919876543210'),tg('igOn','Enable Instagram ordering (online customers)'),f('ig','Instagram username (without @)','airclub.clothing'),tg('adOn','Enable address form ordering (online customers)'),h('label',{},'Show prices to customers'),pc,h('label',{},'Measurement unit'),(()=>{const sl=h('select',{onchange:e=>{S.cfg.unit=e.target.value;save()}},h('option',{value:'in'},'Inches'),h('option',{value:'cm'},'Centimetres'));sl.value=S.cfg.unit||'in';return sl})(),h('p',{class:'mu'},'Changes save automatically.'));
 }
 function addrLines(a){return [a.house,a.street,a.landmark?'Near '+a.landmark:'',[a.city,a.district&&a.district!==a.city?a.district:''].filter(Boolean).join(', '),a.state].filter(Boolean)}
 function labelEl(a){const big=addrLines(a).join(' ').length>120;return h('div',{class:'lb'},h('div',{style:'display:flex;flex-direction:column;height:100%;border:2px solid #000;padding:.14in'},
