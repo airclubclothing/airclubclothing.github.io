@@ -26,6 +26,14 @@ input.bad{border-color:var(--wn)}
 .btn{width:100%;margin-top:20px;background:var(--ac);color:var(--acx);border:0;border-radius:10px;padding:14px 16px;font:inherit;font-weight:600;cursor:pointer}
 .btn:disabled{opacity:.6;cursor:default}
 .top{color:var(--wn);font-size:14px;margin-top:12px}
+.cb{border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-top:10px;background:var(--bg)}
+.cb.hi{border-color:var(--wn)}
+.cl{font-size:13px;color:var(--mu)}
+.cv{font-size:26px;font-weight:600;letter-spacing:.06em}
+.cv.small{font-size:19px}
+.ask{font-weight:600;margin:16px 0 0}
+.btn.alt{background:transparent;color:var(--tx);border:1px solid var(--bd);margin-top:10px}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -55,7 +63,7 @@ input.bad{border-color:var(--wn)}
     <label>State *<input id="state" autocomplete="address-level1" placeholder="e.g. Kerala"></label>
     <div class="err" data-for="state"></div>
 
-    <label>Pin code *<input id="pin" inputmode="numeric" maxlength="6" autocomplete="postal-code" placeholder="e.g. 682016"></label>
+    <label>Pin code * <small>6 digit code of your post office</small><input id="pin" inputmode="numeric" maxlength="6" autocomplete="postal-code" placeholder="e.g. Post office pin code, 682016"></label>
     <div class="err" data-for="pin"></div>
 
     <label>Mobile number 1 *<input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="e.g. 9876543210"></label>
@@ -67,6 +75,18 @@ input.bad{border-color:var(--wn)}
     <div class="top" id="top"></div>
     <button class="btn" id="go" type="submit">Send address</button>
   </form>
+
+  <div id="cf" class="box" hidden>
+    <h2>Check your number and pin code</h2>
+    <p class="mu">A wrong number or pin code means your parcel can't reach you.</p>
+    <div class="cb hi"><div class="cl">Mobile number 1</div><div class="cv" id="cv1"></div></div>
+    <div class="cb" id="cb2"><div class="cl">Mobile number 2</div><div class="cv small" id="cv2"></div></div>
+    <div class="cb hi"><div class="cl">Pin code</div><div class="cv" id="cvp"></div></div>
+    <p class="ask">Are these correct?</p>
+    <div class="top" id="cferr"></div>
+    <button class="btn" id="yes" type="button">Yes, all correct</button>
+    <button class="btn alt" id="no" type="button">No, edit my details</button>
+  </div>
 </main>
 
 <script type="module">
@@ -104,7 +124,26 @@ $('f').addEventListener('submit',async e=>{
   e.preventDefault();
   $('top').textContent='';
   if(!check()){$('top').textContent='Please correct the fields marked in red.';const b=document.querySelector('.bad');if(b)b.focus();return}
-  const btn=$('go');btn.disabled=true;btn.textContent='Sending…';
+  showConfirm();
+});
+
+const grp=p=>p.length===10?p.slice(0,5)+' '+p.slice(5):p;
+function showConfirm(){
+  $('cv1').textContent=grp(mobile($('phone').value));
+  const raw2=$('phone2').value.trim();
+  $('cb2').hidden=!raw2;
+  if(raw2)$('cv2').textContent=grp(mobile(raw2));
+  $('cvp').textContent=digits($('pin').value);
+  $('cferr').textContent='';
+  $('f').hidden=true;$('cf').hidden=false;
+  window.scrollTo(0,0);
+}
+$('no').addEventListener('click',()=>{
+  $('cf').hidden=true;$('f').hidden=false;
+  window.scrollTo(0,0);
+});
+$('yes').addEventListener('click',async()=>{
+  const btn=$('yes');btn.disabled=true;btn.textContent='Sending…';
   try{
     if(!auth.currentUser)await signInAnonymously(auth);
     const id='a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -128,8 +167,8 @@ $('f').addEventListener('submit',async e=>{
     document.getElementById('app').innerHTML='<div class="box"><h2>Thank you, '+a.name.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))+'!</h2><p>We have received your address. We will send your parcel soon.</p></div>';
     window.scrollTo(0,0);
   }catch(err){
-    btn.disabled=false;btn.textContent='Send address';
-    $('top').textContent='Could not send. Please check your internet and try again. ('+(err.code||err.message)+')';
+    btn.disabled=false;btn.textContent='Yes, all correct';
+    $('cferr').textContent='Could not send. Please check your internet and try again. ('+(err.code||err.message)+')';
   }
 });
 </script>
