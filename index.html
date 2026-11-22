@@ -727,7 +727,7 @@ function review(){
 function staff(){
   if(!staffOK){const em=h('input',{type:'email',placeholder:'Staff email'}),pw=h('input',{type:'password',placeholder:'Password'});
     return h('div',{class:'box'},h('h2',{},'Staff login'),h('label',{},'Email'),em,h('label',{},'Password'),pw,h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{try{await signInWithEmailAndPassword(auth,em.value.trim(),pw.value)}catch(e){alert('Login failed: '+e.code)}}},'Open')))}
-  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='sales'?' on':''),onclick:()=>{tab='sales';render()}},'Sales ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='scn'?' on':''),onclick:()=>{tab='scn';render()}},'Scanner'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='off'?' on':''),onclick:()=>{tab='off';render()}},'Offers'),h('button',{class:'chip'+(tab==='del'?' on':''),onclick:()=>{tab='del';render()}},'Delivery'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='sales'?salesView():tab==='scn'?scanView():tab==='cat'?catsView():tab==='off'?offersView():tab==='del'?deliveryView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
+  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='bil'?' on':''),onclick:()=>{tab='bil';render()}},'Billing'),h('button',{class:'chip'+(tab==='plb'?' on':''),onclick:()=>{tab='plb';render()}},'Price labels'),h('button',{class:'chip'+(tab==='sales'?' on':''),onclick:()=>{tab='sales';render()}},'Sales ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='scn'?' on':''),onclick:()=>{tab='scn';render()}},'Scanner'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='off'?' on':''),onclick:()=>{tab='off';render()}},'Offers'),h('button',{class:'chip'+(tab==='del'?' on':''),onclick:()=>{tab='del';render()}},'Delivery'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='bil'?bzView():tab==='plb'?plbView():tab==='sales'?salesView():tab==='scn'?scanView():tab==='cat'?catsView():tab==='off'?offersView():tab==='del'?deliveryView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
 }
 function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t=r.status==='Delivering'?'Hi '+r.name+', your order ('+r.id+') from AIRCLUB CLOTHING is out for delivery.'+(r.track?' Delivery info: '+r.track+'.':''):'Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
 function orderMsgUrl(r){
@@ -990,11 +990,11 @@ function scanOpen(step){
   scanClose();scStep=step;scErr='';
   const st=h('div',{style:'font-size:14px;min-height:40px'},'Starting camera…');
   const vid=h('video',{autoplay:'autoplay',playsinline:'playsinline',muted:'muted',style:'position:absolute;inset:0;width:100%;height:100%;object-fit:cover'});vid.muted=true;
-  const title=step===1?'Scan the label barcode':'Scan the India Post tracking barcode';
+  const title=step===3?'Scan the price label':step===1?'Scan the label barcode':'Scan the India Post tracking barcode';
   const ov=h('div',{id:'scov',style:'position:fixed;inset:0;z-index:50;background:#000;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)'},
     h('div',{style:'display:flex;justify-content:space-between;align-items:center;padding:10px 16px;color:#fff'},h('b',{},title),h('button',{class:'btn s',onclick:scanClose},'\u2715 Close')),
     h('div',{style:'flex:1;position:relative;overflow:hidden;min-height:0'},vid,h('div',{style:'position:absolute;left:8%;right:8%;top:50%;height:130px;margin-top:-65px;border:3px solid #5dcaa5;border-radius:14px;pointer-events:none'}),h('div',{style:'position:absolute;left:8%;right:8%;top:50%;height:2px;background:#e24b4a;pointer-events:none'})),
-    h('div',{style:'padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--card);color:var(--tx)'},st,h('button',{class:'btn o',style:'width:100%',onclick:()=>{scanClose();scMode='type';render()}},'Type code instead')));
+    h('div',{style:'padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--card);color:var(--tx)'},st,h('button',{class:'btn o',style:'width:100%',onclick:()=>{scanClose();if(step!==3)scMode='type';render()}},'Type code instead')));
   document.body.append(ov);
   const found=code=>{if(scBusy)return;scBusy=true;try{navigator.vibrate&&navigator.vibrate(80)}catch(e){}beep();scanClose();scanGot(String(code))};
   (async()=>{
@@ -1024,6 +1024,7 @@ function scanOpen(step){
   })();
 }
 function scanGot(raw){
+  if(scStep===3){bzGot(raw);return}
   const code=String(raw).trim().toUpperCase().replace(/\s+/g,'');
   scErr='';
   if(scStep===1){
@@ -1116,6 +1117,158 @@ function prods(){
     photosOf(p).length?h('div',{class:'th'},photosOf(p).map((x,i)=>h('div',{},h('div',Object.assign({class:'ph'},img({img:x.t}))),h('button',{class:'btn o s',onclick:()=>{const c=photosOf(p).slice();c.splice(i,1);p.imgs=c;p.img=c[0]?c[0].t:'';p.hi=c[0]?c[0].hi:'';save();render()}},'✕')))):'',
     h('button',{class:'btn o s',onclick:()=>{const fi=h('input',{type:'file',accept:'image/*',multiple:'multiple'});fi.onchange=async()=>{const fs=[...fi.files];if(!fs.length)return;const cur=photosOf(p).slice();for(const f of fs){cur.push(await new Promise(res=>procImg(f,async(th,b)=>res(await upPhoto(b,th)))))}p.imgs=cur;p.img=cur[0].t;p.hi=cur[0].hi;save();render()};fi.click()}},'Add photos'),' ',h('button',{class:'btn o s',onclick:()=>{if(confirm('Delete '+p.code+'?')){S.products=S.products.filter(x=>x.id!==p.id);save();render()}}},'Delete'))))));
 }
+/* ===== Shop billing + price labels (added) ===== */
+const bzRs=n=>'\u20b9'+Number(n||0).toLocaleString('en-IN');
+const bzPrice=p=>Number(p.price)>0?Number(p.price):(tiersOf(p.cat)[0]||0);
+const bz0=()=>({step:'scan',items:[],price:null,only:null,name:'',phone:'',disc:'',dt:'rs',pay:'',no:'',time:0,saved:false,err:'',hist:null,ld:false,hq:''});
+let BZ=bz0(),PL={name:'',price:''};
+const bzN=()=>BZ.items.reduce((t,i)=>t+i.q,0);
+const bzSub=()=>BZ.items.reduce((t,i)=>t+i.price*i.q,0);
+const bzDisc=()=>{const s=bzSub(),d=Number(BZ.disc)||0;return Math.max(0,Math.min(s,BZ.dt==='pc'?Math.round(s*Math.min(100,d)/100):d))};
+const bzTot=()=>bzSub()-bzDisc();
+const bzGo=s=>()=>{BZ.step=s;BZ.err='';if(s==='scan')BZ.only=null;render()};
+function bzAdd(p,size){
+  const k=p.id+'|'+size,ex=BZ.items.find(i=>i.key===k),has=p.stock&&p.stock[size]!==undefined?Number(p.stock[size]):Infinity,q=ex?ex.q+1:1;
+  if(q>has){alert('Only '+has+' in stock: '+p.name+' ('+size+')');return}
+  if(ex)ex.q=q;else BZ.items.push({key:k,pid:p.id,code:p.code,name:p.name,size,price:bzPrice(p),q});
+  render();
+}
+function bzGot(raw){
+  const c=String(raw).trim().toUpperCase().replace(/\s+/g,''),m=c.match(/^AC(\d{1,6})-\d+$/),p=m?null:S.products.find(x=>String(x.code).toUpperCase()===c);
+  tab='bil';BZ.err='';
+  if(m){BZ.price=Number(m[1]);BZ.only=null;BZ.step='pick'}
+  else if(p){BZ.price=bzPrice(p);BZ.only=p.id;BZ.step='pick'}
+  else BZ.err='This is not one of our price labels ('+c+'). Try again or use "Not listed item".';
+  render();
+}
+const bzHead=(t,back)=>h('div',{class:'row',style:'justify-content:space-between;margin:6px 0'},h('h3',{style:'margin:0'},t),back?h('button',{class:'btn o s',onclick:back},'Back'):'');
+const bzTabs=()=>h('div',{class:'chips'},h('button',{class:'chip'+(BZ.step!=='hist'?' on':''),onclick:bzGo('scan')},'New bill'),h('button',{class:'chip'+(BZ.step==='hist'?' on':''),onclick:()=>{BZ.step='hist';BZ.hist=null;BZ.ld=false;render()}},'Bills & customers'));
+const bzLines=ed=>BZ.items.map((i,n)=>h('div',{class:'row',style:'border-top:1px solid var(--bd);padding:8px 0'},
+  h('div',{style:'flex:1'},h('b',{},i.name),h('div',{class:'mu'},(i.manual?'Not listed':i.code+' \u00b7 Size '+i.size)+' \u00b7 '+bzRs(i.price)+' \u00d7 '+i.q)),
+  ed?[h('button',{class:'btn o s',onclick:()=>{i.q>1?i.q--:BZ.items.splice(n,1);render()}},'\u2212'),h('b',{},i.q),h('button',{class:'btn o s',onclick:()=>{i.q++;render()}},'+')]:h('b',{},bzRs(i.price*i.q))));
+function bzScan(){
+  const pi=h('input',{type:'number',inputmode:'numeric',placeholder:'Price on label, e.g. 399',style:'flex:1'}),n=bzN();
+  return h('div',{},bzTabs(),
+    BZ.err?h('div',{class:'note',style:'border-left-color:var(--wn);color:var(--wn);margin:10px 0'},BZ.err):'',
+    h('div',{class:'box'},h('b',{style:'font-size:17px'},n+' item'+(n===1?'':'s')+' \u00b7 '+bzRs(bzSub())),bzLines(true)),
+    h('button',{class:'btn',style:'width:100%;margin:10px 0',onclick:()=>scanOpen(3)},'Scan label barcode'),
+    h('div',{class:'box'},h('label',{},'No camera? Type the price'),h('div',{class:'row'},pi,h('button',{class:'btn s',onclick:()=>{const v=Number(pi.value);if(!(v>0)){alert('Enter the price');return}BZ.price=v;BZ.only=null;BZ.err='';BZ.step='pick';render()}},'Show'))),
+    h('button',{class:'btn o',style:'width:100%;margin:10px 0 0',onclick:bzGo('nl')},'Not listed item'),
+    n?h('button',{class:'btn',style:'width:100%;margin-top:10px',onclick:bzGo('cust')},'Print bill'):'');
+}
+function bzPick(){
+  const L=BZ.only?S.products.filter(p=>p.id===BZ.only):S.products.filter(p=>bzPrice(p)===BZ.price),n=bzN();
+  return h('div',{},bzHead(BZ.only?'Product':bzRs(BZ.price)+' products',bzGo('scan')),
+    h('div',{class:'mu',style:'margin-bottom:8px'},L.length?'Tap a size to add it to the bill. Tap again to add more.':'No product is listed at '+bzRs(BZ.price)+'. Use "Not listed".'),
+    h('div',{class:'grid'},L.map(p=>h('div',{class:'card'},ph(p),h('div',{class:'ci'},h('b',{},p.name),h('small',{},p.code),
+      h('div',{class:'sz'},(p.sizes||[]).map(s=>{const out=isOut(p,s),q=(BZ.items.find(i=>i.key===p.id+'|'+s)||{}).q||0,st=p.stock&&p.stock[s]!==undefined?' ('+p.stock[s]+')':'';
+        return h('button',Object.assign({class:(q?'on ':'')+(out?'out':''),onclick:()=>bzAdd(p,s)},out?{disabled:''}:{}),s+st+(q?' \u00d7'+q:''))})))))),
+    h('div',{class:'row',style:'margin-top:12px'},h('button',{class:'btn o',style:'flex:1',onclick:bzGo('nl')},'Not listed'),h('button',{class:'btn',style:'flex:1',onclick:bzGo('scan')},'Done ('+n+' in bill)')));
+}
+function bzNl(){
+  const ni=h('input',{placeholder:'Product name'}),pi=h('input',{type:'number',inputmode:'numeric',placeholder:'Price \u20b9'}),qi=h('input',{type:'number',inputmode:'numeric',value:'1'});
+  return h('div',{},bzHead('Not listed item',bzGo('scan')),h('div',{class:'box'},h('label',{},'Name'),ni,h('label',{},'Price'),pi,h('label',{},'Quantity'),qi),
+    h('button',{class:'btn',style:'width:100%',onclick:()=>{const pr=Number(pi.value),q=Math.max(1,parseInt(qi.value,10)||1);if(!ni.value.trim()||!(pr>0)){alert('Enter name and price');return}
+      BZ.items.push({key:'nl'+Date.now(),manual:true,name:ni.value.trim(),size:'-',price:pr,q});BZ.step='scan';render()}},'Add to bill'));
+}
+function bzCust(){
+  const ni=h('input',{value:BZ.name,placeholder:'Customer name',oninput:e=>{BZ.name=e.target.value}}),pi=h('input',{type:'tel',inputmode:'numeric',value:BZ.phone,placeholder:'Mobile number',oninput:e=>{BZ.phone=e.target.value}});
+  return h('div',{},bzHead('Customer details',bzGo('scan')),h('div',{class:'box'},h('label',{},'Name'),ni,h('label',{},'Mobile number'),pi),
+    h('button',{class:'btn',style:'width:100%',onclick:()=>{const d=BZ.phone.replace(/\D/g,'').slice(-10);if(!BZ.name.trim()){alert('Enter the name');return}if(d.length!==10){alert('Enter a 10 digit mobile number');return}BZ.phone=d;BZ.step='tot';render()}},'Continue'));
+}
+function bzTotal(){
+  const fin=h('div',{style:'font-size:40px;font-weight:900;color:var(--bp);text-align:center'},bzRs(bzTot())),
+    di=h('input',{type:'number',inputmode:'numeric',value:BZ.disc,placeholder:'Discount',oninput:e=>{BZ.disc=e.target.value;fin.textContent=bzRs(bzTot())}});
+  return h('div',{},bzHead('Final amount',bzGo('cust')),h('div',{class:'box'},
+    h('div',{class:'row',style:'justify-content:space-between'},h('span',{},'Total'),h('b',{},bzRs(bzSub()))),
+    h('label',{},'Discount (optional)'),h('div',{class:'row'},h('div',{style:'flex:1'},di),['rs','pc'].map(k=>h('button',{class:'chip'+(BZ.dt===k?' on':''),onclick:()=>{BZ.dt=k;render()}},k==='rs'?'\u20b9':'%'))),
+    h('div',{class:'mu',style:'text-align:center;margin-top:12px'},'Customer pays'),fin),
+    h('button',{class:'btn',style:'width:100%',onclick:bzGo('pay')},'Continue'));
+}
+function bzPay(){
+  const b=p=>h('button',{class:'btn'+(p==='Cash'?'':' o'),style:'width:100%;padding:22px;font-size:20px;margin:6px 0',onclick:()=>bzFinish(p)},p);
+  return h('div',{},bzHead('Payment',bzGo('tot')),h('div',{class:'box',style:'text-align:center'},h('div',{class:'mu'},'Amount received'),h('div',{style:'font-size:36px;font-weight:900'},bzRs(bzTot()))),b('Cash'),b('GPay'));
+}
+async function bzFinish(pay){
+  BZ.pay=pay;
+  if(!BZ.saved){
+    BZ.time=Date.now();BZ.no='B'+ymd(new Date()).replace(/-/g,'').slice(2)+'-'+String(BZ.time%100000).padStart(5,'0');
+    BZ.items.forEach(i=>{const p=S.products.find(x=>x.id===i.pid);if(p&&p.stock&&p.stock[i.size]!==undefined)p.stock[i.size]=Math.max(0,Number(p.stock[i.size])-i.q)});
+    BZ.saved=true;BZ.step='bill';render();save();
+    try{await setDoc(doc(db,'bills',BZ.no),clean({no:BZ.no,name:BZ.name.trim(),phone:BZ.phone,items:BZ.items.map(i=>({code:i.code||'',name:i.name,size:i.size,q:i.q,price:i.price})),sub:bzSub(),disc:bzDisc(),total:bzTot(),pay,time:BZ.time,uid:auth.currentUser.uid}))}
+    catch(e){alert('Bill is ready and stock is updated, but the customer record could not be saved ('+(e.code||e.message)+'). Add a Firestore rule for the "bills" collection.')}
+  }else{BZ.step='bill';render()}
+}
+const bzText=()=>['AIRCLUB CLOTHING'].concat(S.cfg.addr?[S.cfg.addr]:[],['Bill '+BZ.no+' \u00b7 '+new Date(BZ.time).toLocaleString('en-IN'),'Name: '+BZ.name,''],
+  BZ.items.map((i,n)=>(n+1)+'. '+i.name+(i.manual?'':' ('+i.size+')')+' \u00d7'+i.q+' = '+bzRs(i.price*i.q)),
+  [''],bzDisc()?['Subtotal '+bzRs(bzSub()),'Discount -'+bzRs(bzDisc())]:[],['Total '+bzRs(bzTot()),'Paid by '+BZ.pay,'','Thank you! Visit again.']).join('\n');
+function bzBillEl(){
+  const r=(a,b,bd)=>h('div',{style:'display:flex;justify-content:space-between;gap:8px'+(bd?';font-weight:700':'')},h('span',{},a),h('span',{},b));
+  return h('div',{class:'pl',style:'width:72mm;box-sizing:border-box;padding:2mm;background:#fff;color:#000;font:12px/1.4 monospace'},
+    h('div',{style:'text-align:center;font-weight:800;font-size:15px'},'AIRCLUB CLOTHING'),S.cfg.addr?h('div',{style:'text-align:center'},S.cfg.addr):'',S.cfg.phone?h('div',{style:'text-align:center'},'Ph: '+S.cfg.phone):'',
+    h('div',{style:'border-top:1px dashed #000;margin:5px 0'}),r('Bill '+BZ.no,new Date(BZ.time).toLocaleDateString('en-IN')),r(BZ.name,BZ.phone),h('div',{style:'border-top:1px dashed #000;margin:5px 0'}),
+    BZ.items.map(i=>r(i.name+(i.manual?'':' ('+i.size+')')+' \u00d7'+i.q,bzRs(i.price*i.q))),h('div',{style:'border-top:1px dashed #000;margin:5px 0'}),
+    bzDisc()?[r('Subtotal',bzRs(bzSub())),r('Discount','-'+bzRs(bzDisc()))]:'',r('TOTAL',bzRs(bzTot()),1),r('Paid by',BZ.pay),h('div',{style:'text-align:center;margin-top:6px'},'Thank you! Visit again.'));
+}
+function bzPa(css,el){
+  let st=document.getElementById('pgs');if(!st){st=document.createElement('style');st.id='pgs';document.head.append(st)}
+  st.textContent=css+'@media print{body>*:not(#pa){display:none!important}#pa{display:block!important}}';
+  let pa=document.getElementById('pa');if(!pa){pa=document.createElement('div');pa.id='pa';document.body.append(pa)}
+  pa.replaceChildren(el);setTimeout(()=>window.print(),150);
+}
+async function bzShare(){
+  const lines=bzText().split('\n'),W=520,lh=30,H=lines.length*lh+50,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#000';lines.forEach((l,i)=>{x.font=(i===0?'bold 24px':'19px')+' monospace';x.fillText(l.slice(0,44),24,40+i*lh)});
+  const f=await new Promise(res=>c.toBlob(b=>res(new File([b],'bill-'+BZ.no+'.png',{type:'image/png'})),'image/png'));
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:'Bill '+BZ.no})}catch(e){}}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;a.click()}
+}
+function bzBill(){
+  return h('div',{},bzHead('Bill ready'),h('div',{style:'background:#fff;border:1px solid var(--bd);border-radius:10px;padding:8px;overflow:auto;display:flex;justify-content:center'},bzBillEl()),
+    h('div',{class:'mu',style:'margin:8px 0'},'Stock is reduced and the customer number is saved.'),
+    h('button',{class:'btn',style:'width:100%;margin:4px 0',onclick:()=>window.open('https://wa.me/91'+BZ.phone+'?text='+encodeURIComponent(bzText()),'_blank')},'Send bill to WhatsApp'),
+    h('button',{class:'btn o',style:'width:100%;margin:4px 0',onclick:bzShare},'Share bill as photo'),
+    h('button',{class:'btn o',style:'width:100%;margin:4px 0',onclick:()=>bzPa('@page{size:80mm auto;margin:3mm}',bzBillEl())},'Print bill'),
+    h('button',{class:'btn o',style:'width:100%;margin:14px 0 0',onclick:()=>{BZ=bz0();render()}},'New bill'));
+}
+async function bzLoadHist(){
+  BZ.ld=true;
+  try{const q=await getDocs(collection(db,'bills'));BZ.hist=q.docs.map(d=>d.data()).sort((a,b)=>(b.time||0)-(a.time||0))}
+  catch(e){BZ.hist=[];alert('Could not load bills: '+(e.code||e.message))}
+  render();
+}
+function bzHistView(){
+  if(!BZ.hist){if(!BZ.ld)bzLoadHist();return h('div',{},bzTabs(),h('div',{class:'mu'},'Loading\u2026'))}
+  const qs=BZ.hq.trim().toLowerCase(),L=BZ.hist.filter(b=>!qs||(b.name||'').toLowerCase().includes(qs)||String(b.phone).includes(qs)),
+    si=h('input',{value:BZ.hq,placeholder:'Search name or number',onchange:e=>{BZ.hq=e.target.value;render()}});
+  return h('div',{},bzTabs(),h('div',{class:'box'},si,h('div',{class:'mu'},L.length+' bill(s) \u00b7 '+new Set(L.map(b=>b.phone)).size+' customer(s)')),
+    L.map(b=>h('div',{class:'box',style:'margin:8px 0'},h('b',{},(b.name||'')+' \u00b7 '+b.phone),
+      h('div',{class:'mu'},new Date(b.time).toLocaleString('en-IN')+' \u00b7 '+b.pay+' \u00b7 '+bzRs(b.total)+' \u00b7 '+b.no),
+      h('div',{class:'mu'},(b.items||[]).map(i=>i.name+(i.size&&i.size!=='-'?' ('+i.size+')':'')+' \u00d7'+i.q).join(', ')),
+      h('a',{class:'btn o s',href:'https://wa.me/91'+b.phone,target:'_blank'},'WhatsApp'))));
+}
+function bzView(){const s=BZ.step;return s==='hist'?bzHistView():s==='pick'?bzPick():s==='nl'?bzNl():s==='cust'?bzCust():s==='tot'?bzTotal():s==='pay'?bzPay():s==='bill'?bzBill():bzScan()}
+/* A4 price-label sheet: 5 x 16 = 80 labels */
+function plSheet(){
+  const pr=String(PL.price||'').replace(/\D/g,'')||'0',nm=PL.name||'Product name';
+  const g=h('div',{class:'pl',style:'width:210mm;height:297mm;box-sizing:border-box;padding:5.5mm 6mm;background:#fff;color:#000;display:grid;grid-template-columns:repeat(5,39.6mm);grid-template-rows:repeat(16,17.8mm);font-family:Arial,sans-serif;overflow:hidden'});
+  for(let i=1;i<=80;i++){
+    const code='AC'+pr+'-'+String(i).padStart(3,'0'),bc=document.createElement('div');bc.innerHTML=bcSVG(code,1.3,.29);
+    g.append(h('div',{style:'box-sizing:border-box;border:.2mm dashed #777;padding:.6mm 3mm;display:flex;flex-direction:column;align-items:center;overflow:hidden'},bc,h('div',{style:'font:6pt monospace;line-height:1.1'},code),
+      h('div',{style:'display:flex;justify-content:space-between;align-items:baseline;width:100%;margin-top:auto;gap:1mm'},h('b',{style:'font-size:6.5pt;line-height:1.05;max-height:2.2em;overflow:hidden'},nm),h('b',{style:'font-size:9.5pt;white-space:nowrap'},'\u20b9'+pr+'/-'))));
+  }
+  return g;
+}
+function plbView(){
+  const pv=h('div',{style:'overflow:auto;background:#888;border-radius:10px;padding:6px;max-height:62vh'}),draw=()=>{const s=plSheet();s.style.zoom='.42';pv.replaceChildren(s)};
+  const ni=h('input',{value:PL.name,placeholder:'Product name, e.g. Blue check shirt',oninput:e=>{PL.name=e.target.value;draw()}}),
+    pi=h('input',{type:'number',inputmode:'numeric',value:PL.price,placeholder:'Price, e.g. 399',oninput:e=>{PL.price=e.target.value;draw()}});
+  draw();
+  return h('div',{},h('div',{class:'box'},h('h3',{},'Price labels (A4, 80 per sheet)'),h('label',{},'Product name'),ni,h('label',{},'Price \u20b9'),pi,
+    h('div',{class:'mu',style:'margin:8px 0'},'Print on A4 sticker paper (100% scale, no margins). Cut on the dashed lines and stick on each product. The barcode holds the price, so one scan shows every product at that price.'),
+    h('button',{class:'btn',onclick:()=>{if(!(Number(PL.price)>0)){alert('Enter the price first');return}bzPa('@page{size:A4;margin:0}',plSheet())}},'Print A4 sheet')),pv);
+}
+
 render();
 </script>
 </body>
