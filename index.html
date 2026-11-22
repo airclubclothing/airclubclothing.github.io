@@ -333,7 +333,7 @@ function authPage(){
 }
 
 function shop(){
-  if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+(done.addr?'. Your order is confirmed. Payment: Cash on Delivery.':'. We will keep everything ready for you at the shop.')),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{done=null;panel=true;ptab='orders';render()}},'View your orders'),h('button',{class:'btn o',onclick:()=>{done=null;render()}},'Pick more styles')));
+  if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+(done.name||C.name)+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+(done.addr?'. Your order is confirmed. Payment: Cash on Delivery.':'. We will keep everything ready for you at the shop.')),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{done=null;panel=true;ptab='orders';render()}},'View your orders'),h('button',{class:'btn o',onclick:()=>{done=null;render()}},'Pick more styles')));
   const list=S.products.filter(p=>(cat==='All'||p.cat===cat)&&(size==='All'||p.sizes.includes(size))&&(!q||(p.code+' '+p.name).toLowerCase().includes(q.toLowerCase())));
   const ord=Object.values(S.catSizes).flat();const allSizes=[...new Set(S.products.filter(p=>cat==='All'||p.cat===cat).flatMap(p=>p.sizes))].sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
   const inB=(id,s)=>basket.some(b=>b.pid===id&&b.size===s);
@@ -356,8 +356,8 @@ function send(extra){
   if(bs.some(b=>isOut(S.products.find(x=>x.id===b.pid),b.size))){alert('Some selected sizes are sold out. Please remove them.');return}
   const items=bs.map(b=>{const p=S.products.find(x=>x.id===b.pid);return{pid:p.id,code:p.code,name:p.name,cat:p.cat,size:b.size,q:b.q||1,loc:p.loc,t:p.img||'',price:p.price||''}});
   if(editing){const r=S.requests.find(x=>x.id===editing);if(r){r.items=items;r.bill=mkBill(items,r.addr?{addr:1}:null);r.note=note.trim();r.edited=Date.now();r.status='New'}done=r;editing=null}
-  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:C.name,phone:C.phone,time:Date.now(),status:'New',items,bill:mkBill(items,extra),note:note.trim()};if(extra&&extra.payment)r.payment=extra.payment;if(extra&&extra.addr){r.addr=extra.addr;pop=r;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false,payment:r.payment||'',cod:r.payment==='COD'?((r.bill&&(r.bill.final||r.bill.total))||0):0});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);done=r}
-  save();basket=[];note='';panel=false;adr={};adrStep='form';render();
+  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:(!(extra&&extra.addr)&&shopO&&shopO.name)||C.name,phone:(!(extra&&extra.addr)&&shopO&&shopO.phone)||C.phone,time:Date.now(),status:'New',items,bill:mkBill(items,extra),note:note.trim()};if(extra&&extra.payment)r.payment=extra.payment;if(extra&&extra.addr){r.addr=extra.addr;pop=r;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false,payment:r.payment||'',cod:r.payment==='COD'?((r.bill&&(r.bill.final||r.bill.total))||0):0});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);done=r}
+  save();basket=[];note='';panel=false;adr={};adrStep='form';shopO=null;shopStep='confirm';render();
 }
 function mine(){
   const my=C?S.requests.filter(r=>r.cid===C.id).sort((a,b)=>b.time-a.time):[];
@@ -600,7 +600,7 @@ function barPrice(){
   return h('div',{style:'line-height:1.15;white-space:nowrap'},h('div',{style:'font-size:22px;font-weight:800;color:var(--bp)'},'\u20b9'+b.total),b.disc>0?h('div',{style:'font-size:11px;font-weight:600;color:var(--bp)'},h('s',{style:'font-weight:400;color:var(--mu);margin-right:4px'},'\u20b9'+b.mrp),'Save \u20b9'+b.disc):'');
 }
 let rv='pick';
-let adr={},adrStep='form',pop=null;
+let adr={},adrStep='form',pop=null,shopStep='confirm',shopO=null;
 function codPopup(){
   const old=document.getElementById('codpop');if(old)old.remove();
   if(!pop)return;
@@ -655,7 +655,8 @@ function addrBody(){
           }catch(err){bt.disabled=false;bt.textContent='Place order'+amt;alert(err.message||err.code)}
         }},'Place order'+amt))];
   }
-  return [h('h3',{style:'margin:16px 0 0'},'Delivery address'),h('p',{class:'mu',style:'margin:2px 0 0'},'Fill your address to place this order.'),
+  if(C&&adr._cid!==C.id){adr._cid=C.id;adr.name=C.name||'';adr.phone=String(C.phone||'').replace(/\D/g,'').slice(-10)}
+  return [h('h3',{style:'margin:16px 0 0'},'Delivery address'),h('p',{class:'mu',style:'margin:2px 0 0'},'Fill your address to place this order.'),C?h('p',{class:'mu',style:'margin:2px 0 0;font-size:13px'},'Your name and mobile number are filled from your account. You can change them if needed.'):'',
     AF.map(([k,l,pl,ac])=>{const at={value:adr[k]||'',placeholder:pl,autocomplete:ac,oninput:e=>{adr[k]=e.target.value}};if(k==='pin'){at.inputmode='numeric';at.maxlength='6'}if(k==='phone'||k==='phone2')at.inputmode='tel';return [h('label',{},l),h('input',at)]}),
     h('label',{},'Note (optional)'),h('input',{placeholder:'e.g. need for a wedding, prefer dark colours',value:note,oninput:e=>{note=e.target.value}}),
     h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{rv='pick';review()}},'Back'),h('button',{class:'btn',onclick:()=>{
@@ -684,9 +685,24 @@ function review(){
   if(view==='pick'){
     body=[h('h3',{style:'margin:16px 0 4px'},'How will you order?'),h('p',{class:'mu',style:'margin:0 0 10px'},'Choose one'),
       h('div',{class:'two'},
-        h('button',{class:'pick',onclick:()=>{rv='shop';review()}},h('b',{},'Shop customer'),h('div',{class:'mu'},'I will visit the shop. Keep these ready for me.')),
+        h('button',{class:'pick',onclick:()=>{rv='shop';shopStep='confirm';shopO=null;review()}},h('b',{},'Shop customer'),h('div',{class:'mu'},'I will visit the shop. Keep these ready for me.')),
         (waOn||igOn||adOn)?h('button',{class:'pick',onclick:()=>{if(adOn){rv='addr';review();return}if(waOn&&!igOn){const n=waN();if(!n){alert('Shop WhatsApp number is not set yet.');return}open('https://wa.me/'+n+'?text='+encodeURIComponent(onlineMsg()))}else{rv='online';review()}}},h('b',{},'Online customer'),h('div',{class:'mu'},adOn?'I will order by giving my address.':waOn&&!igOn?'I will order on WhatsApp.':(igOn&&!waOn?'I will order on Instagram.':'I will order through WhatsApp or Instagram.'))):''),
       h('div',{class:'row'},h('button',{class:'btn o',onclick:render},'Back'))];
+  }else if(view==='shop'&&C&&!editing){
+    const shw=v=>{const d=String(v||'').replace(/\D/g,'');return d.length===10?d.slice(0,5)+' '+d.slice(5):d};
+    const cn=(shopO&&shopO.name)||C.name||'',cp=(shopO&&shopO.phone)||C.phone||'';
+    if(shopStep==='edit'){
+      const en=h('input',{value:cn,placeholder:'Your name'}),ep=h('input',{value:String(cp).replace(/\D/g,''),placeholder:'Mobile number',inputmode:'tel'});
+      body=[h('h3',{style:'margin:16px 0 0'},'Change your details'),h('p',{class:'mu',style:'margin:2px 0 0'},'This is only for this order. Your account details stay the same.'),h('label',{},'Name'),en,h('label',{},'Mobile number'),ep,
+        h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{shopStep='confirm';review()}},'Back'),h('button',{class:'btn',onclick:()=>{const n=en.value.trim(),m=ep.value.replace(/\D/g,'');if(!n||m.length<8){alert('Please enter your name and a valid mobile number');return}shopO={name:n,phone:m};shopStep='confirm';review()}},'Save'))];
+    }else{
+      const bx=(l,v,hi,sm)=>h('div',{class:'box',style:'margin:8px 0;'+(hi?'border-color:var(--wn)':'')},h('div',{class:'mu'},l),h('div',{style:'font-size:'+(sm?'19':'26')+'px;font-weight:600;letter-spacing:.06em'},v));
+      body=[h('h3',{style:'margin:16px 0 0'},'Shop customer'),noteBox(),
+        h('h3',{style:'margin:16px 0 4px'},'Check your name and number'),h('p',{class:'mu',style:'margin:0 0 6px'},'We will keep your styles ready for this name and number.'),
+        bx('Name',cn,0,1),bx('Mobile number',shw(cp),1),
+        h('b',{style:'display:block;margin-top:14px'},'Are these correct?'),
+        h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn o',onclick:()=>{rv='pick';review()}},'Back'),h('button',{class:'btn o',onclick:()=>{shopStep='edit';review()}},'No, change'),h('button',{class:'btn',onclick:()=>{send()}},'Yes, send to shop'))];
+    }
   }else if(view==='shop'){
     body=[h('h3',{style:'margin:16px 0 0'},editing?'Edit your order':'Shop customer'),
       C?'':[h('label',{},'Your name'),nm,h('label',{},'Mobile number'),pn],
