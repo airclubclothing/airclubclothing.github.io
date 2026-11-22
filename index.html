@@ -1259,14 +1259,45 @@ function plSheet(){
   }
   return g;
 }
+function plPdf(how){
+  if(!(Number(PL.price)>0)){alert('Enter the price first');return}
+  const mm=2.83465,PW=595.28,PH=841.89,f=n=>(+n).toFixed(2);let bad=false,c='';
+  const esc=t=>String(t).replace(/[^\x20-\x7e]/g,()=>{bad=true;return '?'}).replace(/([\\()])/g,'\\$1');
+  const pr=String(PL.price).replace(/\D/g,''),nm=PL.name||'Product name';
+  const txt=(t,x,y,sz,fn,al)=>{t=String(t);const w=pdW(t,sz),xx=al==='c'?x-w/2:al==='r'?x-w:x;c+='0 g BT /'+fn+' '+f(sz)+' Tf 1 0 0 1 '+f(xx)+' '+f(y)+' Tm ('+esc(t)+') Tj ET\n'};
+  const rect=(x,y,w,h)=>{c+='0 g '+f(x)+' '+f(y)+' '+f(w)+' '+f(h)+' re f\n'};
+  const rupee=(x,y,s)=>{const u=s/8,P=(a,b)=>f(x+a*u)+' '+f(y+(8-b)*u);
+    c+='0 G '+f(Math.max(.4,u*.8))+' w '+P(1,.6)+' m '+P(5.6,.6)+' l S '+P(1,2.7)+' m '+P(5.6,2.7)+' l S '+P(1.2,.6)+' m '+P(2.8,.6)+' l '+P(5.4,.6)+' '+P(5.4,4.5)+' '+P(2.8,4.5)+' c '+P(1.2,4.5)+' l S '+P(1.2,4.5)+' m '+P(4.6,8)+' l S\n'};
+  const bars=code=>{const v=[104];let sm=104;[...code].forEach((ch,i)=>{const x=ch.charCodeAt(0)-32;v.push(x);sm+=x*(i+1)});v.push(sm%103,106);return v.map(i=>C128[i]).join('')};
+  const CW=39.6*mm,CH=17.8*mm,X0=6*mm,Y0=5.5*mm,bw=33*mm,PS=9.5,sy=PS*.72,sw=sy*.75,ptw=pdW(pr+'/-',PS)+sw+1;
+  for(let i=1;i<=80;i++){
+    const r=Math.floor((i-1)/5),k=(i-1)%5,cx=X0+k*CW,top=PH-(Y0+r*CH),code='AC'+pr+'-'+String(i).padStart(3,'0');
+    c+='0.45 G 0.57 w [2.2 1.6] 0 d '+f(cx)+' '+f(top-CH)+' '+f(CW)+' '+f(CH)+' re S [] 0 d\n';
+    const b=bars(code),tot=[...b].reduce((t,d)=>t+ +d,0),bx=cx+(CW-bw)/2,bt=top-1.6*mm,bh=7.4*mm;let xm=0;
+    [...b].forEach((d,j)=>{if(j%2===0)rect(bx+xm*bw/tot,bt-bh,+d*bw/tot,bh);xm+=+d});
+    txt(code,cx+CW/2,bt-bh-6.2,6,'F2','c');
+    const L=cx+2.4*mm,R=cx+CW-2.4*mm,base=top-CH+1.7*mm;
+    rupee(R-ptw,base,sy);txt(pr+'/-',R,base,PS,'F1','r');
+    pdWrap(nm,6.5,R-L-ptw-3).slice(0,2).reverse().forEach((t,n)=>txt(t,L,base+n*7,6.5,'F1','l'));
+  }
+  const objs=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [5 0 R] /Count 1 >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+f(PW)+' '+f(PH)+'] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>','<< /Length '+c.length+' >>\nstream\n'+c+'endstream'];
+  let out='%PDF-1.4\n';const off=[];objs.forEach((o,i)=>{off.push(out.length);out+=(i+1)+' 0 obj\n'+o+'\nendobj\n'});
+  const xr=out.length;out+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n'+off.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+(objs.length+1)+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF';
+  const bytes=new Uint8Array(out.length);for(let i=0;i<out.length;i++)bytes[i]=out.charCodeAt(i)&255;
+  const name='airclub-price-'+pr+'-80-labels.pdf',file=new File([bytes],name,{type:'application/pdf'});
+  if(bad)alert('Some letters in the product name (for example Malayalam) cannot be shown in the PDF and were replaced with ?. Please type the name in English letters.');
+  if(how==='share'&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:name}).catch(()=>{})}
+  else{const u=URL.createObjectURL(file),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
+}
 function plbView(){
   const pv=h('div',{style:'overflow:auto;background:#888;border-radius:10px;padding:6px;max-height:62vh'}),draw=()=>{const s=plSheet();s.style.zoom='.42';pv.replaceChildren(s)};
   const ni=h('input',{value:PL.name,placeholder:'Product name, e.g. Blue check shirt',oninput:e=>{PL.name=e.target.value;draw()}}),
     pi=h('input',{type:'number',inputmode:'numeric',value:PL.price,placeholder:'Price, e.g. 399',oninput:e=>{PL.price=e.target.value;draw()}});
   draw();
-  return h('div',{},h('div',{class:'box'},h('h3',{},'Price labels (A4, 80 per sheet)'),h('label',{},'Product name'),ni,h('label',{},'Price \u20b9'),pi,
-    h('div',{class:'mu',style:'margin:8px 0'},'Print on A4 sticker paper (100% scale, no margins). Cut on the dashed lines and stick on each product. The barcode holds the price, so one scan shows every product at that price.'),
-    h('button',{class:'btn',onclick:()=>{if(!(Number(PL.price)>0)){alert('Enter the price first');return}bzPa('@page{size:A4;margin:0}',plSheet())}},'Print A4 sheet')),pv);
+  return h('div',{},h('div',{class:'box'},h('h3',{},'Price labels (A4 PDF, 80 per sheet)'),h('label',{},'Product name'),ni,h('label',{},'Price \u20b9'),pi,
+    h('div',{class:'mu',style:'margin:8px 0'},'Download the A4 PDF and give it to the print shop (sticker paper, print at 100% / actual size, no fit-to-page). Cut on the dashed lines and stick on each product. The barcode holds the price, so one scan shows every product at that price.'),
+    h('div',{class:'row'},h('button',{class:'btn',onclick:()=>plPdf('dl')},'Download A4 PDF'),h('button',{class:'btn o',onclick:()=>plPdf('share')},'Share PDF'))),pv);
 }
 
 render();
