@@ -116,14 +116,17 @@ textarea{font:inherit;color:inherit;width:100%;padding:10px;margin-top:6px;borde
 .dvbub{position:absolute;left:calc(50% + 70px);top:26px;font-size:13px;font-weight:800;color:#151513;background:#ffd23f;border-radius:12px;padding:2px 9px;opacity:0;pointer-events:none;animation:dvrise 1.1s ease-out}
 @keyframes dvrise{0%{opacity:0;transform:translateY(14px)}25%{opacity:1}100%{opacity:0;transform:translateY(-24px)}}
 @media (prefers-reduced-motion:reduce){.dvp{animation:none}.dvbub{display:none}}
+#tip{position:absolute;right:-2px;top:calc(100% + 10px);background:#ffd23f;color:#1c1b19;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;white-space:nowrap;display:none;z-index:9;animation:tipb 1.4s ease-in-out infinite}
+#tip:before{content:"";position:absolute;top:-6px;right:14px;border:6px solid transparent;border-top:0;border-bottom-color:#ffd23f}
+@keyframes tipb{50%{transform:translateY(3px)}}
 </style>
 </head>
 <body>
-<header><h1>AIRCLUB CLOTHING</h1><div class="row" style="margin:0"><button class="btn o s" id="m1">Customer</button><button class="btn o s" id="m2">Staff</button><button class="btn o s" id="bk" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M6 8h12l-1 11H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg> <span id="bn">0</span></button></div></header>
+<header><h1>AIRCLUB CLOTHING</h1><div class="row" style="margin:0"><button class="btn o s" id="m1">Customer</button><button class="btn o s" id="m2">Staff</button><span id="acw" style="position:relative;display:none"><button class="btn o s" id="ac" aria-label="Account" style="min-width:36px"></button><div id="tip">Tap to login</div></span><button class="btn o s" id="bk" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M6 8h12l-1 11H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg> <span id="bn">0</span></button></div></header>
 <main id="app"></main>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import {getAuth,onAuthStateChanged,signInAnonymously,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import {getAuth,onAuthStateChanged,signInAnonymously,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import {getFirestore,collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,query,where,getDocs} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 const app=initializeApp({apiKey:"AIzaSyBnPaZfzEoDpquuMPDF62GbFxvv3CIfjpA",authDomain:"airclub-clothing.firebaseapp.com",projectId:"airclub-clothing",storageBucket:"airclub-clothing.firebasestorage.app",messagingSenderId:"361635228417",appId:"1:361635228417:web:e163a7316942ceeb500900"});
 const auth=getAuth(app),db=getFirestore(app);
@@ -179,7 +182,7 @@ function startListeners(user){
 }
 onAuthStateChanged(auth,async user=>{
   if(!user){await signInAnonymously(auth).catch(e=>{root.textContent='Could not start: '+e.message});return}
-  staffOK=!user.isAnonymous&&!!user.email&&!user.email.endsWith(CE);C=null;
+  staffOK=!user.isAnonymous&&(user.email||'').toLowerCase()===STAFF;C=null;
   if(staffOK){mode='staff'}else{mode='cust';try{const d=await getDoc(doc(db,'customers',user.uid));if(d.exists()){C=d.data();if(!basket.length)basket=(C.basket||[]).map(b=>Object.assign({},b,{q:b.q||1}));lastB=JSON.stringify(basket)}}catch(e){}}
   startListeners(user);ready=true;if(!staffOK)logVisit(user);render();
 });
@@ -189,10 +192,14 @@ const img=p=>p&&p.img?{style:'background-image:url('+p.img+')'}:{};
 function ph(p){const e=h('div',Object.assign({class:'ph'},img(p)),p&&p.img?'':(p?p.code:'?'));if(p&&p.img&&p.id){e.style.cursor='zoom-in';e.onclick=ev=>{ev.stopPropagation();openZoom2(p)}}const n=p?photosOf(p).length:0;if(n>1)e.append(h('span',{class:'bd'},n+' photos'));return e}
 function render(){if(!ready){root.textContent='Loading…';return}
   if(C&&auth.currentUser&&!staffOK){const j=JSON.stringify(basket);if(j!==lastB){lastB=j;setDoc(doc(db,'customers',auth.currentUser.uid),{basket},{merge:true}).catch(()=>{})}}
-  document.getElementById('m2').style.display=(location.hash==='#staff'||staffOK)?'':'none';document.getElementById('bk').style.display=mode==='cust'?'':'none';document.getElementById('bn').textContent=bc();root.replaceChildren(mode==='cust'?(panel?mine():shop()):staff());if(mode==='cust'&&pop&&!document.getElementById('codpop'))codPopup()}
-document.getElementById('m1').onclick=()=>{mode='cust';panel=false;render()};
+  document.getElementById('m2').style.display=(location.hash==='#staff'||staffOK)?'':'none';document.getElementById('bk').style.display=mode==='cust'?'':'none';document.getElementById('bn').textContent=bc();{const lg=!!C&&!staffOK,ab=document.getElementById('ac');document.getElementById('acw').style.display=mode==='cust'?'':'none';if(lg)ab.textContent=(C.name||'?').trim().charAt(0).toUpperCase();else ab.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-3px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';document.getElementById('tip').style.display=(mode==='cust'&&!C&&!authView&&!tipOff)?'block':'none'}
+  root.replaceChildren(mode==='cust'?(authView?authPage():panel?mine():shop()):staff());
+  if(need&&C&&mode==='cust'&&!authView){need=false;rv='pick';review();return}
+  if(mode==='cust'&&pop&&!document.getElementById('codpop'))codPopup()}
+document.getElementById('m1').onclick=()=>{mode='cust';panel=false;authView=null;render()};
 document.getElementById('m2').onclick=()=>{mode='staff';render()};
-document.getElementById('bk').onclick=()=>{panel=!panel;done=null;ptab=null;render()};
+document.getElementById('bk').onclick=()=>{authView=null;panel=!panel;done=null;ptab=null;render()};
+document.getElementById('ac').onclick=()=>{tipOff=true;mode='cust';panel=false;A.msg='';authView=C?'acct':'login';render();window.scrollTo(0,0)};
 
 const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('ac_img',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const idbPut=(k,b)=>idb().then(d=>new Promise(res=>{const t=d.transaction('f','readwrite');t.objectStore('f').put(b,k);t.oncomplete=res;t.onerror=res})).catch(()=>{});
@@ -260,9 +267,71 @@ async function identify(name,ph0,create){
   return C;
 }
 function login(){
-  const p=h('input',{placeholder:'Mobile number',inputmode:'tel'});
-  return h('div',{class:'box'},h('b',{},'Ordered before?'),h('p',{class:'mu'},'Enter the mobile number you used, to see your earlier orders.'),p,h('div',{class:'row'},h('button',{class:'btn s',onclick:async()=>{try{await identify('',p.value,false);ptab='orders';render()}catch(e){alert(e.message||e.code)}}},'Show my orders')));
+  return h('div',{class:'box'},h('b',{},'Have an account?'),h('p',{class:'mu'},'Log in to see your orders.'),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{authView='login';A.msg='';panel=false;render()}},'Log in'),h('button',{class:'btn s o',onclick:()=>{authView='signup';A.msg='';panel=false;render()}},'Create account')));
 }
+
+/* ===== Customer accounts: login, sign up, forgot password ===== */
+const STAFF='adhilpersonal1@gmail.com';
+let authView=null,need=false,tipOff=false,A={mode:'m',cc:'IN',id:'',pw:'',name:'',email:'',num:'',msg:'',sent:''};
+const CL=(()=>{let f=null;try{f=new Intl.DisplayNames(['en'],{type:'region'})}catch(e){}return 'AF93,AX358,AL355,DZ213,AS1684,AD376,AO244,AI1264,AG1268,AR54,AM374,AW297,AU61,AT43,AZ994,BS1242,BH973,BD880,BB1246,BY375,BE32,BZ501,BJ229,BM1441,BT975,BO591,BQ599,BA387,BW267,BR55,IO246,VG1284,BN673,BG359,BF226,BI257,KH855,CM237,CA1,CV238,KY1345,CF236,TD235,CL56,CN86,CO57,KM269,CG242,CD243,CK682,CR506,CI225,HR385,CU53,CW599,CY357,CZ420,DK45,DJ253,DM1767,DO1809,EC593,EG20,SV503,GQ240,ER291,EE372,SZ268,ET251,FK500,FO298,FJ679,FI358,FR33,GF594,PF689,GA241,GM220,GE995,DE49,GH233,GI350,GR30,GL299,GD1473,GP590,GU1671,GT502,GG44,GN224,GW245,GY592,HT509,HN504,HK852,HU36,IS354,IN91,ID62,IR98,IQ964,IE353,IM44,IL972,IT39,JM1876,JP81,JE44,JO962,KZ7,KE254,KI686,XK383,KW965,KG996,LA856,LV371,LB961,LS266,LR231,LY218,LI423,LT370,LU352,MO853,MG261,MW265,MY60,MV960,ML223,MT356,MH692,MQ596,MR222,MU230,YT262,MX52,FM691,MD373,MC377,MN976,ME382,MS1664,MA212,MZ258,MM95,NA264,NR674,NP977,NL31,NC687,NZ64,NI505,NE227,NG234,NU683,KP850,MK389,MP1670,NO47,OM968,PK92,PW680,PS970,PA507,PG675,PY595,PE51,PH63,PL48,PT351,PR1787,QA974,RE262,RO40,RU7,RW250,WS685,SM378,ST239,SA966,SN221,RS381,SC248,SL232,SG65,SX1721,SK421,SI386,SB677,SO252,ZA27,KR82,SS211,ES34,LK94,BL590,SH290,KN1869,LC1758,MF590,PM508,VC1784,SD249,SR597,SE46,CH41,SY963,TW886,TJ992,TZ255,TH66,TL670,TG228,TK690,TO676,TT1868,TN216,TR90,TM993,TC1649,TV688,VI1340,UG256,UA380,AE971,GB44,US1,UY598,UZ998,VU678,VA379,VE58,VN84,WF681,EH212,YE967,ZM260,ZW263'.split(',').map(x=>{const c=x.slice(0,2);let n=c;try{n=(f&&f.of(c))||c}catch(e){}return{c,d:x.slice(2),n}}).sort((a,b)=>a.c==='IN'?-1:b.c==='IN'?1:a.n.localeCompare(b.n))})();
+const dial=()=>(CL.find(o=>o.c===A.cc)||{d:'91'}).d;
+const flag=c=>String.fromCodePoint(...[...c].map(x=>127397+x.charCodeAt(0)));
+const nat=s=>String(s).replace(/\D/g,'').replace(/^0+/,'');
+const mask=e=>e.charAt(0)+'*****'+e.slice(e.indexOf('@'));
+const emsg=e=>{const k=e&&e.code||'';return /invalid-credential|wrong-password|user-not-found|invalid-login/.test(k)?'Wrong details or password':/email-already/.test(k)?'This email already has an account. Please log in.':/weak-password/.test(k)?'Password must be at least 6 characters':/invalid-email/.test(k)?'Please enter a valid email':/too-many/.test(k)?'Too many tries. Please wait a few minutes and try again':/network/.test(k)?'No internet connection':/permission/.test(k)?'Setup is not finished (database rules). Please tell the shop.':(e&&e.message)||k||'Something went wrong'};
+async function emailFor(){
+  if(A.mode==='e'){const em=A.id.trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(em))throw new Error('Please enter a valid email');return em}
+  const n=nat(A.id);if(n.length<5)throw new Error('Please enter a valid mobile number');
+  const x=await getDoc(doc(db,'phoneIndex',dial()+n));
+  if(!x.exists())throw new Error('No account found for this number. Please sign up.');
+  return x.data().email;
+}
+async function signUp(){
+  const nm=A.name.trim(),em=A.email.trim().toLowerCase(),n=nat(A.num),d=dial(),ok=A.cc==='IN'?/^[6-9]\d{9}$/.test(n):(n.length>=5&&n.length<=14);
+  if(!nm)throw new Error('Please enter your first name');
+  if(!/^\S+@\S+\.\S+$/.test(em))throw new Error('Please enter a valid email');
+  if(!ok)throw new Error('Please enter a valid mobile number');
+  if(A.pw.length<6)throw new Error('Password must be at least 6 characters');
+  if((await getDoc(doc(db,'phoneIndex',d+n))).exists())throw new Error('This mobile number already has an account. Please log in.');
+  await createUserWithEmailAndPassword(auth,em,A.pw);
+  const u=auth.currentUser;
+  await setDoc(doc(db,'phoneIndex',d+n),{email:em,uid:u.uid});
+  C={id:'AC'+Math.floor(10000+Math.random()*90000),name:nm,phone:d==='91'?n:d+n,email:em,cc:d,time:Date.now()};
+  await setDoc(doc(db,'customers',u.uid),C);
+}
+async function loadC(){const u=auth.currentUser;if(!u)return;try{const d=await getDoc(doc(db,'customers',u.uid));if(d.exists()){C=d.data();if(!basket.length)basket=(C.basket||[]).map(b=>Object.assign({},b,{q:b.q||1}));lastB=JSON.stringify(basket)}}catch(e){}}
+function pickCC(){
+  const ov=h('div',{style:'position:fixed;inset:0;background:var(--bg);z-index:50;overflow:auto;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top,0px))'}),ls=h('div',{});
+  const draw=v=>{const t=v.trim().toLowerCase().replace('+','');ls.replaceChildren(...CL.filter(o=>!t||o.n.toLowerCase().includes(t)||o.d.startsWith(t)).map(o=>h('button',{style:'display:flex;justify-content:space-between;width:100%;background:none;border:0;border-top:1px solid var(--bd);padding:12px 2px;text-align:left;cursor:pointer',onclick:()=>{A.cc=o.c;ov.remove();render()}},h('span',{},flag(o.c)+' '+o.n),h('span',{style:o.c===A.cc?'color:var(--ac);font-weight:600':'color:var(--mu)'},'+'+o.d+(o.c===A.cc?' \u2713':'')))))};
+  ov.append(h('div',{class:'row',style:'margin:0 0 8px'},h('input',{placeholder:'Search country or code',oninput:e=>draw(e.target.value),style:'flex:1'}),h('button',{class:'btn o s',onclick:()=>ov.remove()},'Close')),ls);draw('');document.body.append(ov);
+}
+function authPage(){
+  const v=authView,go=x=>{authView=x;A.msg='';render();window.scrollTo(0,0)};
+  const inp=(k,ph,t)=>h('input',{placeholder:ph,type:t||'text',value:A[k],oninput:e=>{A[k]=e.target.value}});
+  const pw=()=>{const i=h('input',{placeholder:'Password',type:'password',value:A.pw,oninput:e=>{A.pw=e.target.value},style:'flex:1'});const b=h('button',{class:'btn o s',type:'button',onclick:()=>{const t=i.type==='password';i.type=t?'text':'password';b.textContent=t?'Hide':'Show'}},'Show');return h('div',{class:'row',style:'margin:0'},i,b)};
+  const msg=()=>A.msg?h('p',{style:'color:var(--wn);font-size:14px;margin:8px 0'},A.msg):'';
+  const ccb=()=>h('button',{class:'btn o',type:'button',style:'white-space:nowrap',onclick:pickCC},flag(A.cc)+' +'+dial()+' \u25BE');
+  const mob=k=>h('div',{class:'row',style:'margin:0'},ccb(),h('input',{placeholder:'Mobile number',inputmode:'tel',value:A[k],oninput:e=>{A[k]=e.target.value},style:'flex:1'}));
+  const idRow=()=>A.mode==='e'?inp('id','Email','email'):mob('id');
+  const tog=()=>h('div',{class:'chips'},[['m','Mobile number'],['e','Email']].map(([k,l])=>h('button',{class:'chip'+(A.mode===k?' on':''),onclick:()=>{A.mode=k;A.id='';A.msg='';render()}},l)));
+  const lk=(t,x)=>h('a',{href:'#',style:'color:var(--ac);font-weight:600',onclick:e=>{e.preventDefault();go(x)}},t);
+  const run=(fn)=>async e=>{const b=e.target;b.disabled=true;try{await fn();render()}catch(x){A.msg=emsg(x);b.disabled=false;render()}};
+  if(v==='login')return h('div',{class:'box'},h('h2',{style:'margin:0 0 4px'},'Log in'),h('p',{class:'mu',style:'margin:0 0 8px'},'Welcome back to Airclub Clothing'),msg(),tog(),idRow(),
+    h('div',{style:'display:flex;justify-content:space-between;align-items:center;margin:12px 0 4px'},h('label',{style:'margin:0'},'Password'),h('a',{href:'#',style:'font-size:14px;color:var(--pr);font-weight:600',onclick:e=>{e.preventDefault();go('forgot')}},'Forgot password?')),pw(),
+    h('button',{class:'btn',style:'width:100%;margin-top:14px',onclick:run(async()=>{const em=await emailFor();if(!A.pw)throw new Error('Please enter your password');await signInWithEmailAndPassword(auth,em,A.pw);A.pw='';A.msg='';authView=null;await loadC()})},'Log in'),
+    h('p',{class:'mu',style:'text-align:center;margin-top:16px'},'New here? ',lk('Create new account','signup')));
+  if(v==='signup')return h('div',{class:'box'},h('h2',{style:'margin:0 0 4px'},'Create account'),h('p',{class:'mu',style:'margin:0 0 8px'},'Takes less than a minute'),msg(),
+    h('label',{},'First name'),inp('name','First name'),h('label',{},'Email address'),inp('email','name@email.com','email'),h('label',{},'Mobile number'),mob('num'),h('label',{},'Password'),pw(),
+    h('button',{class:'btn',style:'width:100%;margin-top:14px',onclick:run(async()=>{await signUp();A.pw='';A.msg='';authView=null})},'Create account'),
+    h('p',{class:'mu',style:'text-align:center;margin-top:16px'},'Already have an account? ',lk('Log in','login')));
+  if(v==='forgot')return h('div',{class:'box'},h('h2',{style:'margin:0 0 4px'},'Forgot password?'),h('p',{class:'mu',style:'margin:0 0 8px'},'Enter your mobile number or email. We will send a reset link to the email on your account.'),msg(),tog(),idRow(),
+    h('button',{class:'btn',style:'width:100%;margin-top:14px',onclick:run(async()=>{const em=await emailFor();try{await sendPasswordResetEmail(auth,em,{url:location.origin+location.pathname})}catch(x){if(/continue-uri|domain/.test(x.code||''))await sendPasswordResetEmail(auth,em);else if(/user-not-found/.test(x.code||''))throw new Error('No account found with this email');else throw x}A.sent=mask(em);A.msg='';authView='sent'})},'Send reset link'),
+    h('p',{class:'mu',style:'text-align:center;margin-top:16px'},lk('Back to log in','login')));
+  if(v==='sent')return h('div',{class:'box'},h('h2',{style:'margin:0 0 8px'},'Check your email'),h('p',{},'Reset link sent to ',h('b',{},A.sent),'. Open the email, set a new password, then log in here.'),h('p',{class:'mu'},'If you cannot see it, check the spam folder.'),h('button',{class:'btn o',style:'width:100%;margin-top:10px',onclick:()=>go('login')},'Back to log in'));
+  return h('div',{class:'box'},h('h2',{style:'margin:0 0 4px'},'Hi '+(C?C.name:'')),C?h('p',{class:'mu',style:'margin:0 0 10px'},C.id+(C.email?' · '+C.email:'')):'',
+    h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn',onclick:()=>{authView=null;panel=true;ptab='orders';render()}},'My orders'),h('button',{class:'btn o',onclick:()=>{authView=null;panel=false;render()}},'Continue shopping'),h('button',{class:'btn o',onclick:()=>{basket=[];lastB='[]';C=null;authView=null;signOut(auth)}},'Log out')));
+}
+
 function shop(){
   if(done)return h('div',{class:'box'},h('h2',{},'Thank you, '+C.name+'!'),h('p',{},'Your list ('+done.items.length+' styles) has been '+(done.edited?'updated':'sent')+'. Request ID: '+done.id+(done.addr?'. Your order is confirmed. Payment: Cash on Delivery.':'. We will keep everything ready for you at the shop.')),h('div',{class:'row'},h('button',{class:'btn',onclick:()=>{done=null;panel=true;ptab='orders';render()}},'View your orders'),h('button',{class:'btn o',onclick:()=>{done=null;render()}},'Pick more styles')));
   const list=S.products.filter(p=>(cat==='All'||p.cat===cat)&&(size==='All'||p.sizes.includes(size))&&(!q||(p.code+' '+p.name).toLowerCase().includes(q.toLowerCase())));
@@ -278,7 +347,7 @@ function shop(){
     list.length?h('div',{class:'grid'},list.map(p=>h('div',{class:'card'},ph(p),h('div',{class:'ci'},h('b',{},p.name),h('small',{},p.code+(S.cfg.showPrice&&unitPrice(p)?' · ₹'+unitPrice(p):'')),(S.cfg.showPrice&&offerLine(p.cat))?h('div',{class:'mu',style:'font-size:12px'},offerLine(p.cat)):'',hasChart(p)?h('div',{},h('a',{href:'#',style:'font-size:12px;color:var(--mu);text-decoration:underline',onclick:e=>{e.preventDefault();e.stopPropagation();openZoom2(p,true)}},'Size chart')):'',
       h('div',{class:'sz'},p.sizes.filter(s=>size==='All'||s===size).map(s=>h('button',isOut(p,s)?{class:'out',disabled:'disabled'}:{class:inB(p.id,s)?'on':'',onclick:()=>{tapSize(p.id,s);render()}},s))))))):h('p',{class:'mu'},'No styles here yet.'),
     (S.cfg.phone||S.cfg.addr||S.cfg.timing)?h('div',{class:'box'},h('b',{},'Visit us'),S.cfg.addr?h('div',{class:'mu'},S.cfg.addr):'',S.cfg.timing?h('div',{class:'mu'},S.cfg.timing):'',S.cfg.phone?h('div',{class:'mu'},'Call: '+S.cfg.phone):''):'',
-    h('div',{class:'bar'},barLeft(),h('button',{class:'btn',onclick:()=>{rv='pick';review()}},'Review & send')));
+    h('div',{class:'bar'},barLeft(),h('button',{class:'btn',onclick:()=>{if(!C){need=true;A.msg='Please log in or create an account to send your order.';authView='login';render();window.scrollTo(0,0);return}rv='pick';review()}},'Review & send')));
 }
 const STL={'New':'Sent to shop','Packing':'Being packed','Ready at shop':'Ready at shop','Delivering':'Out for delivery','Collected':'Collected'};
 function send(extra){
