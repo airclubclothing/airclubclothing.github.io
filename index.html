@@ -91,6 +91,8 @@ input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10
 .ofen{background:rgba(0,0,0,.08);color:#000}
 .ofpg{background:rgba(0,0,0,.1)}.ofpg i{background:#000}
 .ofrb{z-index:3}
+textarea{font:inherit;color:inherit;width:100%;padding:10px;margin-top:6px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}
+.pv{zoom:.8;width:4in;margin:0 auto;background:#888;padding:6px}.pv .lb{width:4in;height:6in}
 .gh{display:flex;align-items:center;gap:8px;margin:12px 0 8px;padding:9px 11px;border-radius:12px;background:var(--card);border:1px solid var(--bd);cursor:pointer;flex-wrap:wrap}.gh.t{border-color:var(--ac)}.gh .sp{flex:1}
 .cal{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-bottom:10px}
 .cg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-top:8px}.cg button{border:1px solid transparent;background:transparent;color:var(--tx);padding:8px 0;border-radius:8px;font:inherit;font-size:14px;cursor:pointer}.cg .has{border-color:var(--ac)}.cg .no{color:var(--mu);opacity:.55}.cg .sel{background:var(--ac);color:var(--acx);font-weight:700;opacity:1}
@@ -129,7 +131,7 @@ function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
 const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},catMeasures:{Shirts:['Length','Chest','Shoulder','Sleeve'],'T-Shirts':['Length','Chest','Shoulder','Sleeve'],Jeans:['Waist','Length','Hip','Thigh']},catChart:{},catCharts:{},catPrices:{Shirts:[399,749,999],Jeans:[599,999,1497]},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,adOn:false,unit:'in',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
-let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='sales',sSec='shop',sSt='act',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null,adDay='',adTog={},adCal=false,adCalM=null;
+let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='sales',sSec='shop',sSt='act',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null,adDay='',adTog={},adCal=false,adCalM=null,adLs=false;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
 const clean=o=>JSON.parse(JSON.stringify(o));
@@ -285,7 +287,7 @@ function send(extra){
   if(bs.some(b=>isOut(S.products.find(x=>x.id===b.pid),b.size))){alert('Some selected sizes are sold out. Please remove them.');return}
   const items=bs.map(b=>{const p=S.products.find(x=>x.id===b.pid);return{pid:p.id,code:p.code,name:p.name,cat:p.cat,size:b.size,q:b.q||1,loc:p.loc,t:p.img||'',price:p.price||''}});
   if(editing){const r=S.requests.find(x=>x.id===editing);if(r){r.items=items;r.bill=mkBill(items,r.addr?{addr:1}:null);r.note=note.trim();r.edited=Date.now();r.status='New'}done=r;editing=null}
-  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:C.name,phone:C.phone,time:Date.now(),status:'New',items,bill:mkBill(items,extra),note:note.trim()};if(extra&&extra.payment)r.payment=extra.payment;if(extra&&extra.addr){r.addr=extra.addr;pop=r;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);done=r}
+  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:C.name,phone:C.phone,time:Date.now(),status:'New',items,bill:mkBill(items,extra),note:note.trim()};if(extra&&extra.payment)r.payment=extra.payment;if(extra&&extra.addr){r.addr=extra.addr;pop=r;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false,payment:r.payment||'',cod:r.payment==='COD'?((r.bill&&(r.bill.final||r.bill.total))||0):0});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);done=r}
   save();basket=[];note='';panel=false;adr={};adrStep='form';render();
 }
 function mine(){
@@ -696,20 +698,53 @@ function setView(){
   return h('div',{class:'box'},h('h3',{},'Shop settings'),f('addr','Shop address','e.g. near railway station, Kozhikode'),f('timing','Timing','e.g. 10 AM to 9 PM'),f('phone','Shop phone','e.g. 98xxxxxxxx'),tg('waOn','Enable WhatsApp ordering (online customers)'),f('wa','Shop WhatsApp number (with country code)','e.g. 919876543210'),tg('igOn','Enable Instagram ordering (online customers)'),f('ig','Instagram username (without @)','airclub.clothing'),tg('adOn','Enable address form ordering (online customers)'),h('label',{},'Show prices to customers'),pc,h('label',{},'Measurement unit'),(()=>{const sl=h('select',{onchange:e=>{S.cfg.unit=e.target.value;save()}},h('option',{value:'in'},'Inches'),h('option',{value:'cm'},'Centimetres'));sl.value=S.cfg.unit||'in';return sl})(),h('p',{class:'mu'},'Changes save automatically.'));
 }
 function addrLines(a){return [a.house,a.street,a.landmark?'Near '+a.landmark:'',[a.city,a.district&&a.district!==a.city?a.district:''].filter(Boolean).join(', '),a.state].filter(Boolean)}
-function labelEl(a){const big=addrLines(a).join(' ').length>120;return h('div',{class:'lb'},h('div',{style:'display:flex;flex-direction:column;height:100%;border:2px solid #000;padding:.14in'},
-  h('div',{style:'font-size:9pt;font-weight:700;letter-spacing:.12em'},'DELIVER TO'),
-  h('div',{style:'font-size:21pt;font-weight:800;line-height:1.1;margin:.04in 0'},a.name),
-  h('div',{style:'font-size:'+(big?'12':'15')+'pt;line-height:1.25;flex:1;overflow:hidden'},addrLines(a).map(l=>h('div',{},l))),
-  h('div',{style:'font-size:24pt;font-weight:800;margin-top:.04in'},'PIN: '+a.pin),
-  h('div',{style:'font-size:15pt;font-weight:700'},'Ph: '+a.phone+(a.phone2?' / '+a.phone2:'')),
-  h('div',{style:'border-top:1.5px dashed #000;margin-top:.06in;padding-top:.05in;font-size:9pt'},'FROM: AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+(S.cfg.phone?' | Ph: '+S.cfg.phone:''))))}
-function printLabels(list){
-  const w=lbl==='6x4'?6:4,hh=lbl==='6x4'?4:6;
+const C128=["212222","222122","222221","121223","121322","131222","122213","122312","132212","221213","221312","231212","112232","122132","122231","113222","123122","123221","223211","221132","221231","213212","223112","312131","311222","321122","321221","312212","322112","322211","212123","212321","232121","111323","131123","131321","112313","132113","132311","211313","231113","231311","112133","112331","132131","113123","113321","133121","313121","211331","231131","213113","213311","213131","311123","311321","331121","312113","312311","332111","314111","221411","431111","111224","111422","121124","121421","141122","141221","112214","112412","122114","122411","142112","142211","241211","221114","413111","241112","134111","111242","121142","121241","114212","124112","124211","411212","421112","421211","212141","214121","412121","111143","111341","131141","114113","114311","411113","411311","113141","114131","311141","411131","211412","211214","211232","2331112"];
+function bcSVG(text,wIn,hIn){
+  const v=[104];let sm=104;[...text].forEach((c,i)=>{const x=c.charCodeAt(0)-32;v.push(x);sm+=x*(i+1)});v.push(sm%103,106);
+  const bars=v.map(i=>C128[i]).join(''),tot=[...bars].reduce((t,d)=>t+ +d,0);let x=0,r='';
+  [...bars].forEach((d,i)=>{if(i%2===0)r+='<rect x="'+x+'" y="0" width="'+d+'" height="10"/>';x+=+d});
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+tot+' 10" preserveAspectRatio="none" shape-rendering="crispEdges" style="display:block;width:'+wIn+'in;height:'+hIn+'in"><g fill="#000">'+r+'</g></svg>';
+}
+function lbCfg(){const c=S.cfg||{};return {cust:(c.lbCust||'1521731660').trim(),con:(c.lbCon||'41484075').trim(),name:(c.lbName||'Adhil Muhammed K').trim(),addr:(c.lbAddr||'Kottilingal House, Pattarthodi, Payyanakkal, PO Kallai-673003\nKozhikode, Kerala, India'),mob:(c.lbMob||'+91-8590411353').trim()}}
+function codAmt(a){
+  if(a._cod!==undefined)return a._cod;
+  const r=a.ref&&S.requests.find(x=>x.id===a.ref);
+  if(r)return r.payment==='COD'?((r.bill&&(r.bill.final||r.bill.total))||0):0;
+  return a.payment==='COD'?(+a.cod||0):0;
+}
+function labelEl(a){
+  const L=lbCfg(),amt=codAmt(a),p10=x=>{const d=String(x||'').replace(/\D/g,'').slice(-10);return d?'+91'+d:''};
+  const lm=String(a.landmark||'').trim();
+  const lines=[[a.house,a.street].filter(Boolean).join(', '),lm?(/^near\b/i.test(lm)?lm:'Near '+lm):'',[a.city,a.district&&a.district!==a.city?a.district:'',a.state].filter(Boolean).join(', ')].filter(Boolean);
+  const id=a.lid||'A000000',bc=document.createElement('div');bc.innerHTML=bcSVG(id,1.75,.38);
+  const bd='font-weight:700;font-size:10pt;line-height:1.38';
+  return h('div',{class:'lb'},h('div',{style:'display:flex;flex-direction:column;height:100%;border:2px solid #000;padding:.14in .14in .1in;font-family:Arial,Helvetica,sans-serif;color:#000'},
+    h('div',{style:'text-align:center;font-weight:800;font-size:14pt;line-height:1.2'},'INDIA POST PARCEL',h('br'),'CONTRACTUAL'),
+    h('div',{style:'border-top:2.5px solid #000;margin:.09in 0 .12in'}),
+    amt>0?h('div',{style:'background:#000;color:#fff;text-align:center;padding:.09in .06in;margin:.02in 0 .12in;font-weight:800;-webkit-print-color-adjust:exact;print-color-adjust:exact'},h('div',{style:'font-size:11pt'},'AMOUNT TO BE COLLECTED:'),h('div',{style:'font-size:15pt;margin-top:.03in'},'Rs. '+Number(amt).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' (COD)')):h('div',{style:'height:.5in'}),
+    h('div',{style:'text-align:center;font-weight:700;font-size:7.8pt'},'Customer ID: '+L.cust+'  |  Contract ID: '+L.con),
+    h('div',{style:'border-top:1px solid #bbb;margin:.07in 0 .08in'}),
+    h('div',{style:'font-weight:800;font-size:12.5pt;text-decoration:underline;margin:.05in 0 .07in'},'SHIP TO:'),
+    h('div',{style:bd},a.name),lines.map(l=>h('div',{style:bd},l)),h('div',{style:bd},'PIN: '+a.pin),h('div',{style:bd},'MOB: '+p10(a.phone)),a.phone2?h('div',{style:bd},'MOB 2: '+p10(a.phone2)):'',
+    h('div',{style:'flex:1'}),
+    h('div',{style:'border-top:1px dashed #666;margin:.06in 0'}),
+    h('div',{style:'display:flex;justify-content:space-between;align-items:center'},h('b',{style:'font-size:10.5pt'},'ORDER ID: '+id),h('div',{style:'text-align:center'},bc,h('div',{style:'font-size:6.5pt;letter-spacing:.12em;margin-top:.02in'},id))),
+    h('div',{style:'border-top:1px dashed #666;margin:.06in 0 0'}),
+    h('div',{style:'border-top:2.5px solid #000;margin:.05in 0 .05in'}),
+    h('div',{style:'font-weight:800;font-size:12.5pt;text-decoration:underline;margin-bottom:.04in'},'FROM:'),
+    h('div',{style:'font-weight:700;font-size:8.2pt;line-height:1.4'},h('div',{},L.name),L.addr.split('\n').filter(x=>x.trim()).map(x=>h('div',{},x.trim())),h('div',{},'MOB No. '+L.mob)))) }
+function labelIds(list){
+  const d=new Date(),dk=String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+String(d.getFullYear()%100).padStart(2,'0');
+  let seq=Math.max(0,...AD.filter(a=>a.lday===dk).map(a=>a.lseq||0));
+  list.slice().sort((a,b)=>(a.time||0)-(b.time||0)).forEach(a=>{if(!a.lid){seq++;a.lday=dk;a.lseq=seq;a.lid='A'+dk+seq;setDoc(doc(db,'addresses',a.id),clean(a)).catch(e=>console.log(e))}});
+}
+function printLabels(list,test){
+  const w=4,hh=6;if(!test)labelIds(list);
   let st=document.getElementById('pgs');if(!st){st=document.createElement('style');st.id='pgs';document.head.append(st)}
   st.textContent='@page{size:'+w+'in '+hh+'in;margin:0}@media print{body>*:not(#pa){display:none!important}#pa{display:block!important}.lb{width:'+w+'in;height:'+hh+'in}}';
   let pa=document.getElementById('pa');if(!pa){pa=document.createElement('div');pa.id='pa';document.body.append(pa)}
   pa.replaceChildren(...list.map(labelEl));
-  window.addEventListener('afterprint',()=>{setTimeout(()=>{if(confirm('Mark '+list.length+' label(s) as printed?'))list.forEach(a=>{a.printed=true;setDoc(doc(db,'addresses',a.id),clean(a))})},300)},{once:true});
+  if(!test)window.addEventListener('afterprint',()=>{setTimeout(()=>{if(confirm('Mark '+list.length+' label(s) as printed?'))list.forEach(a=>{a.printed=true;setDoc(doc(db,'addresses',a.id),clean(a))})},300)},{once:true});
   setTimeout(()=>window.print(),150);
 }
 function addrView(){
@@ -724,8 +759,24 @@ function addrView(){
     h('div',{class:'mu'},a.phone+(a.phone2?' / '+a.phone2:'')+(a.time?' \u00b7 '+new Date(a.time).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'}):'')),
     h('div',{},addrLines(a).join(', ')+' - '+a.pin),
     a.ref?h('div',{class:'mu'},'Ref: '+a.ref):'',
+    codAmt(a)>0?h('div',{style:'display:inline-block;margin:4px 0;padding:3px 9px;border-radius:10px;background:#ffd23f;color:#1c1b19;font-weight:800;font-size:12px'},'COD \u00b7 Collect \u20b9'+codAmt(a)):'',a.lid?h('div',{class:'mu'},'Label ID: '+a.lid):'',
     h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn s',onclick:()=>printLabels([a])},'Print label'),h('button',{class:'btn s o',onclick:()=>{a.printed=!a.printed;saveA(a)}},a.printed?'Mark not printed':'Mark printed'),h('button',{class:'btn s o',onclick:()=>{adEdit=a.id;render()}},'Edit'),h('button',{class:'btn s o',onclick:()=>{if(confirm('Delete this address?')){adSel.delete(a.id);deleteDoc(doc(db,'addresses',a.id))}}},'Delete')));
-  const csvA=()=>{const K=['name','phone','phone2','house','street','landmark','city','district','state','pin','ref'];const rows=[K.concat(['date','printed'])].concat(AD.map(a=>K.map(k=>a[k]||'').concat([a.time?ymd(new Date(a.time)):'',a.printed?'yes':'no'])));const tx=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+tx],{type:'text/csv'}));l.download='airclub-addresses.csv';document.body.append(l);l.click();l.remove()};
+  const csvA=()=>{const K=['name','phone','phone2','house','street','landmark','city','district','state','pin','ref'];const rows=[K.concat(['date','printed','labelId','cod'])].concat(AD.map(a=>K.map(k=>a[k]||'').concat([a.time?ymd(new Date(a.time)):'',a.printed?'yes':'no',a.lid||'',codAmt(a)||''])));const tx=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+tx],{type:'text/csv'}));l.download='airclub-addresses.csv';document.body.append(l);l.click();l.remove()};
+  const lsBox=()=>{
+    const L=lbCfg();
+    const iC=h('input',{value:L.cust}),iK=h('input',{value:L.con}),iN=h('input',{value:L.name}),iM=h('input',{value:L.mob}),ta=h('textarea',{rows:'3'});ta.value=L.addr;
+    const dk=(()=>{const d=new Date();return String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+String(d.getFullYear()%100).padStart(2,'0')})();
+    const todayN=Math.max(0,...AD.filter(a=>a.lday===dk).map(a=>a.lseq||0));
+    const sample={name:'Jinesh Jayan',house:'Therivilaveedu',street:'PO venpakal',landmark:'Near Kamukinkodu church',city:'Thiruvananthapuram',state:'Kerala',pin:'695123',phone:'7907850455',phone2:'9123456780',lid:'A'+dk+(todayN+1),_cod:1069};
+    const read=()=>{const c=S.cfg;c.lbCust=iC.value.trim()||'1521731660';c.lbCon=iK.value.trim()||'41484075';c.lbName=iN.value.trim();c.lbAddr=ta.value.trim();c.lbMob=iM.value.trim()};
+    const pv=h('div',{class:'pv'},labelEl(sample));
+    return h('div',{class:'box'},h('h3',{},'Label settings'),
+      h('label',{},'Customer ID (printed on every label)'),iC,h('label',{},'Contract ID (printed on every label)'),iK,
+      h('div',{class:'mu',style:'font-size:12px;margin-top:4px'},'Customer ID and Contract ID cannot be empty, or the COD payment will not reach your account.'),
+      h('label',{},'FROM name'),iN,h('label',{},'FROM address (one line per row)'),ta,h('label',{},'FROM mobile'),iM,
+      h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn s',onclick:()=>{read();save();render()}},'Save'),h('button',{class:'btn s o',onclick:()=>{read();printLabels([sample],true)}},'Print test label')),
+      h('div',{class:'mu',style:'margin:10px 0 6px'},'Today ('+dk+'): '+todayN+' labels printed. Next ID: A'+dk+(todayN+1)),
+      h('div',{class:'mu',style:'margin-bottom:6px'},'Preview (4 x 6 in, sample address):'),pv)};
   const _d=new Date(),tk=ymd(_d),yk=ymd(new Date(_d.getFullYear(),_d.getMonth(),_d.getDate()-1));
   const keyOf=a=>a.time?ymd(new Date(a.time)):'old';
   const fmtD=k=>new Date(k+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'});
@@ -765,10 +816,10 @@ function addrView(){
     h('input',{id:'aq',placeholder:'Search name, phone, PIN',value:adQ,oninput:e=>{adQ=e.target.value;render();const x=document.getElementById('aq');x.focus();x.setSelectionRange(adQ.length,adQ.length)}}),
     dayChips(),adCal?calBox():'',
     h('div',{class:'row',style:'flex-wrap:wrap;margin-top:10px'},
-      h('button',{class:'btn s'+(lbl==='6x4'?'':' o'),onclick:()=>{lbl='6x4';render()}},'Label 6x4 in'),h('button',{class:'btn s'+(lbl==='4x6'?'':' o'),onclick:()=>{lbl='4x6';render()}},'Label 4x6 in'),
+      h('button',{class:'btn s'+(adLs?'':' o'),onclick:()=>{adLs=!adLs;render()}},'Label settings'),
       h('button',{class:'btn s o',onclick:()=>{AD.filter(a=>!a.printed).forEach(a=>adSel.add(a.id));render()}},'Select all not printed'),h('button',{class:'btn s o',onclick:()=>{adSel.clear();render()}},'Clear'),
       h('button',{class:'btn s',onclick:()=>{if(!selL.length){alert('Select at least one address');return}printLabels(selL)}},'Print selected ('+selL.length+')'),h('button',{class:'btn s o',onclick:csvA},'Download CSV')),
-    groupsView(),selBar());
+    adLs?lsBox():'',groupsView(),selBar());
 }
 function parseSizes(t){const out=[];t.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>{const m=s.match(/^(\d+)\s*-\s*(\d+)(?:\s*\/\s*(\d+))?$/);if(m){const a=+m[1],b=+m[2],st=+(m[3]||1);for(let v=a;v<=b;v+=st)out.push(String(v))}else out.push(s)});return [...new Set(out)]}
 function procImg(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const sc=m=>{const k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c};const th=sc(700).toDataURL('image/jpeg',.8);sc(3000).toBlob(b=>cb(th,b),'image/jpeg',.92)};im.src=r.result};r.readAsDataURL(f)}
