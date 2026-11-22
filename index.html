@@ -91,6 +91,10 @@ input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10
 .ofen{background:rgba(0,0,0,.08);color:#000}
 .ofpg{background:rgba(0,0,0,.1)}.ofpg i{background:#000}
 .ofrb{z-index:3}
+.gh{display:flex;align-items:center;gap:8px;margin:12px 0 8px;padding:9px 11px;border-radius:12px;background:var(--card);border:1px solid var(--bd);cursor:pointer;flex-wrap:wrap}.gh.t{border-color:var(--ac)}.gh .sp{flex:1}
+.cal{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-bottom:10px}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-top:8px}.cg button{border:1px solid transparent;background:transparent;color:var(--tx);padding:8px 0;border-radius:8px;font:inherit;font-size:14px;cursor:pointer}.cg .has{border-color:var(--ac)}.cg .no{color:var(--mu);opacity:.55}.cg .sel{background:var(--ac);color:var(--acx);font-weight:700;opacity:1}
+.selbar{position:sticky;bottom:8px;z-index:5;background:var(--card);border:1px solid var(--ac);border-radius:14px;padding:10px 12px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
 .ofpt{font-size:15px;font-weight:700;line-height:1.25;margin:4px 0 10px;max-width:58%;color:#000}
 .ofgo{display:inline-block;background:#000;color:#fff;border:0;border-radius:24px;padding:9px 16px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px}
 .ofdots{display:flex;justify-content:center;gap:6px;margin-top:10px}
@@ -125,7 +129,7 @@ function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(
 const SIZES=['S','M','L','XL','XXL'],DEFCATS=['Shirts','T-Shirts','Jeans'];
 const sample=[['SH-001','Blue check shirt','Shirts',['M','L','XL'],'G1-A1'],['SH-002','White formal shirt','Shirts',['M','L'],'G1-A2'],['TS-001','Black round-neck tee','T-Shirts',['S','M','L','XL'],'G2-B1'],['TS-002','Olive polo tee','T-Shirts',['M','L'],'G2-B2'],['JN-001','Slim fit blue jeans','Jeans',['30','32','34'],'G3-C1'],['JN-002','Black stretch jeans','Jeans',['32','34'],'G3-C2']].map((p,i)=>({id:'p'+i,code:p[0],name:p[1],cat:p[2],sizes:p[3],loc:p[4],img:''}));
 const S={products:[],requests:[],catSizes:{Shirts:['S','M','L','XL','XXL'],'T-Shirts':['S','M','L','XL','XXL'],Jeans:['28','30','32','34','36']},catMeasures:{Shirts:['Length','Chest','Shoulder','Sleeve'],'T-Shirts':['Length','Chest','Shoulder','Sleeve'],Jeans:['Waist','Length','Hip','Thigh']},catChart:{},catCharts:{},catPrices:{Shirts:[399,749,999],Jeans:[599,999,1497]},cfg:{showPrice:true,phone:'',addr:'',timing:'',wa:'',ig:'airclub.clothing',waOn:true,igOn:false,adOn:false,unit:'in',offerTitle:'Offers',offers:'3 Shirts for ₹999\n4 T-Shirts for ₹999\n2 Jeans for ₹999'}};
-let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='sales',sSec='shop',sSt='act',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null;
+let C=null,mode='cust',cat='All',size='All',basket=[],staffOK=false,tab='sales',sSec='shop',sSt='act',done=null,panel=false,editing=null,q='',note='',ready=false,unsubs=[],CU=[],VI=[],lastB='[]',lastSel=null,ptab=null,vr={k:'today'},AD=[],lbl='6x4',adSel=new Set(),adF='all',adQ='',adEdit=null,adDay='',adTog={},adCal=false,adCalM=null;
 const CE='@customers.airclub.local';
 const snap={products:{},requests:{},set:''};
 const clean=o=>JSON.parse(JSON.stringify(o));
@@ -717,20 +721,54 @@ function addrView(){
   const editCard=a=>{const ins={};return h('div',{class:'box'},F.map(([k,l])=>[h('label',{},l),(ins[k]=h('input',{value:a[k]||''}))]),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{F.forEach(([k])=>a[k]=ins[k].value.trim());adEdit=null;saveA(a);render()}},'Save'),h('button',{class:'btn s o',onclick:()=>{adEdit=null;render()}},'Cancel')))};
   const card=a=>h('div',{class:'box'},
     h('div',{class:'row',style:'justify-content:space-between'},h('label',{style:'display:flex;gap:8px;align-items:center;margin:0;color:inherit'},(()=>{const c=h('input',{type:'checkbox',style:'width:auto',onchange:e=>{e.target.checked?adSel.add(a.id):adSel.delete(a.id);render()}});c.checked=adSel.has(a.id);return c})(),h('b',{},a.name)),h('span',{class:'st'},a.printed?'Printed':'Not printed')),
-    h('div',{class:'mu'},a.phone+(a.phone2?' / '+a.phone2:'')+(a.time?' \u00b7 '+new Date(a.time).toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'')),
+    h('div',{class:'mu'},a.phone+(a.phone2?' / '+a.phone2:'')+(a.time?' \u00b7 '+new Date(a.time).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'}):'')),
     h('div',{},addrLines(a).join(', ')+' - '+a.pin),
     a.ref?h('div',{class:'mu'},'Ref: '+a.ref):'',
     h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn s',onclick:()=>printLabels([a])},'Print label'),h('button',{class:'btn s o',onclick:()=>{a.printed=!a.printed;saveA(a)}},a.printed?'Mark not printed':'Mark printed'),h('button',{class:'btn s o',onclick:()=>{adEdit=a.id;render()}},'Edit'),h('button',{class:'btn s o',onclick:()=>{if(confirm('Delete this address?')){adSel.delete(a.id);deleteDoc(doc(db,'addresses',a.id))}}},'Delete')));
   const csvA=()=>{const K=['name','phone','phone2','house','street','landmark','city','district','state','pin','ref'];const rows=[K.concat(['date','printed'])].concat(AD.map(a=>K.map(k=>a[k]||'').concat([a.time?ymd(new Date(a.time)):'',a.printed?'yes':'no'])));const tx=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+tx],{type:'text/csv'}));l.download='airclub-addresses.csv';document.body.append(l);l.click();l.remove()};
+  const _d=new Date(),tk=ymd(_d),yk=ymd(new Date(_d.getFullYear(),_d.getMonth(),_d.getDate()-1));
+  const keyOf=a=>a.time?ymd(new Date(a.time)):'old';
+  const fmtD=k=>new Date(k+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  const cnt=k=>L.filter(a=>keyOf(a)===k).length;
+  const dayLabel=k=>k===tk?'Today':k===yk?'Yesterday':k==='old'?'Older':fmtD(k);
+  const daySub=(k,n)=>(k==='old'?'':(k===tk||k===yk?fmtD(k)+' \u00b7 ':new Date(k+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long'})+' \u00b7 '))+n+(n===1?' address':' addresses');
+  const dayChips=()=>{const pk=adDay&&adDay!==tk&&adDay!==yk;return h('div',{class:'chips'},
+    h('button',{class:'chip'+(!adDay?' on':''),onclick:()=>{adDay='';adCal=false;render()}},'All days'),
+    h('button',{class:'chip'+(adDay===tk?' on':''),onclick:()=>{adDay=tk;adCal=false;render()}},'Today \u00b7 '+cnt(tk)),
+    h('button',{class:'chip'+(adDay===yk?' on':''),onclick:()=>{adDay=yk;adCal=false;render()}},'Yesterday \u00b7 '+cnt(yk)),
+    h('button',{class:'chip'+(pk||adCal?' on':''),onclick:()=>{adCal=!adCal;if(!adCalM){const b=adDay&&adDay!=='old'?new Date(adDay+'T00:00:00'):new Date();adCalM=new Date(b.getFullYear(),b.getMonth(),1)}render()}},'\ud83d\udcc5 '+(pk?fmtD(adDay):'Pick date')))};
+  const calBox=()=>{
+    if(!adCalM)adCalM=new Date(_d.getFullYear(),_d.getMonth(),1);
+    const y=adCalM.getFullYear(),m=adCalM.getMonth(),has=new Set(AD.map(keyOf)),first=(new Date(y,m,1).getDay()+6)%7,dim=new Date(y,m+1,0).getDate();
+    const cells=['M','T','W','T','F','S','S'].map(x=>h('span',{class:'mu',style:'font-size:11px'},x));
+    for(let i=0;i<first;i++)cells.push(h('span',{}));
+    for(let d=1;d<=dim;d++){const k=ymd(new Date(y,m,d));cells.push(h('button',{class:(has.has(k)?'has':'no')+(adDay===k?' sel':''),onclick:()=>{adDay=k;adCal=false;render()}},String(d)))}
+    return h('div',{class:'cal'},h('div',{class:'row',style:'justify-content:space-between;align-items:center'},
+      h('button',{class:'btn s o',onclick:()=>{adCalM=new Date(y,m-1,1);render()}},'\u2039'),h('b',{},adCalM.toLocaleDateString('en-IN',{month:'long',year:'numeric'})),h('button',{class:'btn s o',onclick:()=>{adCalM=new Date(y,m+1,1);render()}},'\u203a')),
+      h('div',{class:'cg'},cells),h('div',{class:'mu',style:'font-size:12px;margin-top:8px'},'Green outline = addresses came that day'))};
+  const groupsView=()=>{
+    const src=adDay?L.filter(a=>keyOf(a)===adDay):L;
+    if(!src.length)return h('p',{class:'mu'},adDay?'No addresses on '+dayLabel(adDay)+'.':'No addresses yet.');
+    const g={};src.forEach(a=>{(g[keyOf(a)]=g[keyOf(a)]||[]).push(a)});
+    return Object.keys(g).sort((a,b)=>a==='old'?1:b==='old'?-1:b<a?-1:1).map(k=>{
+      const arr=g[k].sort((a,b)=>(b.time||0)-(a.time||0)),open=adDay?true:(k in adTog?adTog[k]:k===tk),all=arr.every(a=>adSel.has(a.id));
+      return h('div',{},
+        h('div',{class:'gh'+(k===tk?' t':''),onclick:()=>{if(adDay)return;adTog[k]=!open;render()}},
+          h('b',{},dayLabel(k)),h('span',{class:'mu',style:'font-size:12px'},daySub(k,arr.length)),h('span',{class:'sp'}),
+          h('button',{class:'btn s'+(all?'':' o'),onclick:e=>{e.stopPropagation();arr.forEach(a=>all?adSel.delete(a.id):adSel.add(a.id));render()}},all?'\u2713 All selected':'Select all'),
+          adDay?'':h('span',{class:'mu'},open?'\u25be':'\u25b8')),
+        open?arr.map(a=>adEdit===a.id?editCard(a):card(a)):'')})};
+  const selBar=()=>selL.length?h('div',{class:'selbar'},h('div',{},h('b',{},selL.length+' selected'),h('button',{class:'btn s o',style:'margin-left:8px',onclick:()=>{adSel.clear();render()}},'Clear')),h('button',{class:'btn',onclick:()=>printLabels(selL)},'Print '+selL.length+(selL.length===1?' label':' labels'))):'';
   return h('div',{},
     h('div',{class:'box'},h('b',{},'Customer address form link'),h('div',{class:'mu',style:'word-break:break-all;margin:4px 0'},url),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{navigator.clipboard.writeText(url).then(()=>alert('Link copied'),()=>alert(url))}},'Copy link'),h('a',{class:'btn s o',href:url,target:'_blank',rel:'noopener'},'Open'))),
     h('div',{class:'chips'},[['all','All'],['new','Not printed'],['done','Printed']].map(([k,l])=>h('button',{class:'chip'+(adF===k?' on':''),onclick:()=>{adF=k;render()}},l))),
     h('input',{id:'aq',placeholder:'Search name, phone, PIN',value:adQ,oninput:e=>{adQ=e.target.value;render();const x=document.getElementById('aq');x.focus();x.setSelectionRange(adQ.length,adQ.length)}}),
+    dayChips(),adCal?calBox():'',
     h('div',{class:'row',style:'flex-wrap:wrap;margin-top:10px'},
       h('button',{class:'btn s'+(lbl==='6x4'?'':' o'),onclick:()=>{lbl='6x4';render()}},'Label 6x4 in'),h('button',{class:'btn s'+(lbl==='4x6'?'':' o'),onclick:()=>{lbl='4x6';render()}},'Label 4x6 in'),
       h('button',{class:'btn s o',onclick:()=>{AD.filter(a=>!a.printed).forEach(a=>adSel.add(a.id));render()}},'Select all not printed'),h('button',{class:'btn s o',onclick:()=>{adSel.clear();render()}},'Clear'),
       h('button',{class:'btn s',onclick:()=>{if(!selL.length){alert('Select at least one address');return}printLabels(selL)}},'Print selected ('+selL.length+')'),h('button',{class:'btn s o',onclick:csvA},'Download CSV')),
-    L.length?L.map(a=>adEdit===a.id?editCard(a):card(a)):h('p',{class:'mu'},'No addresses yet.'));
+    groupsView(),selBar());
 }
 function parseSizes(t){const out=[];t.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>{const m=s.match(/^(\d+)\s*-\s*(\d+)(?:\s*\/\s*(\d+))?$/);if(m){const a=+m[1],b=+m[2],st=+(m[3]||1);for(let v=a;v<=b;v+=st)out.push(String(v))}else out.push(s)});return [...new Set(out)]}
 function procImg(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const sc=m=>{const k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c};const th=sc(700).toDataURL('image/jpeg',.8);sc(3000).toBlob(b=>cb(th,b),'image/jpeg',.92)};im.src=r.result};r.readAsDataURL(f)}
