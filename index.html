@@ -91,6 +91,10 @@ input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10
 .ofen{background:rgba(0,0,0,.08);color:#000}
 .ofpg{background:rgba(0,0,0,.1)}.ofpg i{background:#000}
 .ofrb{z-index:3}
+.ofpt{font-size:15px;font-weight:700;line-height:1.25;margin:4px 0 10px;max-width:58%;color:#000}
+.ofgo{display:inline-block;background:#000;color:#fff;border:0;border-radius:24px;padding:9px 16px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px}
+.ofdots{display:flex;justify-content:center;gap:6px;margin-top:10px}
+.ofdt{width:7px;height:7px;border-radius:50%;border:0;padding:0;background:var(--bd);cursor:pointer}.ofdt.on{background:var(--tx);width:18px;border-radius:4px}
 .ofpic{position:absolute;right:16px;top:18px;width:clamp(100px,34%,140px);aspect-ratio:3/4;border-radius:14px;border:4px solid #fff;box-shadow:0 8px 22px rgba(0,0,0,.28);background-color:#ddd;background-size:cover;background-position:center;transform:rotate(3deg);cursor:zoom-in;z-index:2}
 
 .dvb{margin:14px 0;border:1px solid var(--bd);border-radius:14px;background:var(--card);padding:14px;position:relative}
@@ -405,10 +409,14 @@ function offerHero(){
   if(ofPhoto.k!==key||(ofPhoto.pid&&!pool.some(x=>x.id===ofPhoto.pid))){ofPhoto={k:key,pid:pool.length?pool[Math.floor(Math.random()*pool.length)].id:null,ix:Math.random()}}
   const pp=pool.find(x=>x.id===ofPhoto.pid),ph0=pp?photosOf(pp):[],pic=ph0.length?ph0[Math.floor(ofPhoto.ix*ph0.length)]:null;
   el.style.background='#FFFFFF';el.classList.toggle('hp',!!pic);
-  el.replaceChildren(c.save?h('div',{class:'ofrb'},c.save):'',pic?h('div',{class:'ofpic',style:'background-image:url("'+pic.t+'")',onclick:()=>openZoom2(pp)}):'',h('span',{class:'ofch'},c.label||'Offer'),c.big?h('p',{class:'offo'},c.big):'',h('p',{class:'ofpr'},ofP(c.price)),c.desc?h('p',{class:'ofds'},c.desc):'',h('span',{class:'ofen',id:'ofen'}),L.length>1?h('div',{class:'ofpg'},h('i',{})):'');
-  ofCountdown();
+  el.replaceChildren(c.save?h('div',{class:'ofrb'},c.save):'',pic?h('div',{class:'ofpic',style:'background-image:url("'+pic.t+'")',onclick:()=>openZoom2(pp)}):'',h('span',{class:'ofch'},c.label||'Offer'),c.big?h('p',{class:'offo'},c.big):'',h('p',{class:'ofpr'},ofP(c.price)),(ofText(c)?h('p',{class:'ofpt'},ofText(c)):''),(ofCat(c)?h('button',{class:'ofgo',onclick:e=>{e.stopPropagation();ofGo(c)}},'Pick anything \u2192'):''),h('div',{},h('span',{class:'ofen',id:'ofen'})),L.length>1?h('div',{class:'ofpg'},h('i',{})):'');
+  ofCountdown();offerDots();
 }
 let ofPhoto={k:null,pid:null,ix:0};
+function ofCat(c){if(c.photo==='-')return '';if(c.photo&&S.products.some(p=>p.cat===c.photo))return c.photo;const p=S.products.find(x=>ofNorm(x.cat)===ofNorm(c.label));return p?p.cat:''}
+function ofText(c){if(c.desc)return c.desc;const n=(String(c.big||'').match(/\d+/)||[])[0];if(!n)return '';const w=String(ofCat(c)||c.label||'').toLowerCase();if(!w)return '';return 'Pick any '+n+' '+(/s$/.test(w)?w:w+'s')+' for '+ofP(c.price)}
+function ofGo(c){const k=ofCat(c);if(!k)return;cat=k;size='All';q='';render();setTimeout(()=>{const e=document.getElementById('sq');if(e){e.style.scrollMarginTop='70px';e.scrollIntoView({behavior:'smooth',block:'start'})}},50)}
+function offerDots(){const d=document.getElementById('ofdots'),L=offerCards();if(!d)return;d.replaceChildren(...(L.length>1?L.map((c,i)=>h('button',{class:'ofdt'+(i===offerCur?' on':''),'aria-label':'Offer '+(i+1),onclick:()=>{offerCur=i;offerHero();startOfferTimer()}})):[]))}
 const ofNorm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'').replace(/s$/,'');
 function ofPool(c){
   if(c.photo==='-')return [];
@@ -431,7 +439,7 @@ function offersSection(){
   const w=h('div',{class:'ofs'},
     h('div',{class:'ofsh'},h('b',{},S.cfg.offerTitle||'Offers'),h('span',{class:'oflv'},h('span',{class:'ofdot'}),'LIVE NOW')),
     h('div',{class:'ofh',id:'ofh'}),
-    h('div',{class:'ofvp',id:'ofvp'},h('div',{class:'oftk',id:'oftk'},L.map(ofCard),L.map(ofCard))));
+    h('div',{class:'ofdots',id:'ofdots'}));
   setTimeout(()=>{offerHero();ofSizeStrip()},0);
   return w;
 }
