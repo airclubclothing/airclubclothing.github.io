@@ -727,7 +727,7 @@ function review(){
 function staff(){
   if(!staffOK){const em=h('input',{type:'email',placeholder:'Staff email'}),pw=h('input',{type:'password',placeholder:'Password'});
     return h('div',{class:'box'},h('h2',{},'Staff login'),h('label',{},'Email'),em,h('label',{},'Password'),pw,h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{try{await signInWithEmailAndPassword(auth,em.value.trim(),pw.value)}catch(e){alert('Login failed: '+e.code)}}},'Open')))}
-  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='sales'?' on':''),onclick:()=>{tab='sales';render()}},'Sales ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='off'?' on':''),onclick:()=>{tab='off';render()}},'Offers'),h('button',{class:'chip'+(tab==='del'?' on':''),onclick:()=>{tab='del';render()}},'Delivery'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='sales'?salesView():tab==='cat'?catsView():tab==='off'?offersView():tab==='del'?deliveryView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
+  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='sales'?' on':''),onclick:()=>{tab='sales';render()}},'Sales ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='scn'?' on':''),onclick:()=>{tab='scn';render()}},'Scanner'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='off'?' on':''),onclick:()=>{tab='off';render()}},'Offers'),h('button',{class:'chip'+(tab==='del'?' on':''),onclick:()=>{tab='del';render()}},'Delivery'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='sales'?salesView():tab==='scn'?scanView():tab==='cat'?catsView():tab==='off'?offersView():tab==='del'?deliveryView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
 }
 function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t=r.status==='Delivering'?'Hi '+r.name+', your order ('+r.id+') from AIRCLUB CLOTHING is out for delivery.'+(r.track?' Delivery info: '+r.track+'.':''):'Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
 function orderMsgUrl(r){
@@ -735,8 +735,7 @@ function orderMsgUrl(r){
   const paid=r.payment==='Prepaid'||r.paid===true;
   const L=(r.items||[]).map((i,k)=>(k+1)+'. '+i.name+' ('+i.code+'), Size '+i.size+', Qty '+(i.q||1));
   const pay=paid?'Payment: Paid'+(tot>0?' \u20b9'+tot:''):(tot>0?'Pay on delivery: \u20b9'+tot:'Payment: Cash on Delivery');
-  const ph=String(S.cfg.phone||'').trim();
-  const t='Hi '+r.name+', this is AIRCLUB CLOTHING. An order was placed with this number.\n\nOrder '+r.id+'\n'+L.join('\n')+'\n'+pay+'\n\nDeliver to:\n'+addrLines(a).join(', ')+' - '+a.pin+'\n\nYour order will be delivered to your home within 2-3 days.'+(ph?'\nTo cancel, please call us on '+ph+'.':'');
+  const t='Hi '+r.name+', this is AIRCLUB CLOTHING. Your order has been sent by India Post.\n\nOrder '+r.id+'\n'+L.join('\n')+'\n'+pay+(r.track?'\n\nTracking code: '+r.track+'\nTo see where your parcel has reached, open indiapost.gov.in, go to Track Consignment, and enter this tracking code.':'')+'\n\nDeliver to:\n'+addrLines(a).join(', ')+' - '+a.pin+'\n\nYour order will be delivered to your home within 2-3 days.';
   return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)
 }
 function salesView(){
@@ -761,7 +760,7 @@ function reqs(dn,sec){
     r.payment==='COD'?h('div',{style:'display:inline-block;margin:6px 0;padding:4px 10px;border-radius:10px;background:#ffd23f;color:#1c1b19;font-weight:800;font-size:13px'},'COD · Collect ₹'+((r.bill&&(r.bill.final||r.bill.total))||0)+' on delivery'):'',
     r.note?h('div',{class:'note'},'Note: '+r.note):'',
     h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size+((i.q||1)>1?' x'+i.q:''),h('br'),i.loc||'',h('br'),h('button',{class:'btn s'+(i.sold?'':' o'),onclick:()=>soldToggle(r,i)},i.sold?'Sold ✓':'Mark sold')))),
-    (r.bill&&r.bill.total>0?billStaff(r.bill):''),h('a',{class:'btn s',href:tel(r.phone)},'Call '+r.phone),' ',(r.addr&&r.addr.phone2)?[h('a',{class:'btn s o',href:tel(r.addr.phone2)},'Call alt '+r.addr.phone2),' ']:'',h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),(r.addr?[h('a',{class:'btn s',href:orderMsgUrl(r),target:'_blank',rel:'noopener'},'Send order details'),' ']:''),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
+    (r.bill&&r.bill.total>0?billStaff(r.bill):''),h('a',{class:'btn s',href:tel(r.phone)},'Call '+r.phone),' ',(r.addr&&r.addr.phone2)?[h('a',{class:'btn s o',href:tel(r.addr.phone2)},'Call alt '+r.addr.phone2),' ']:'',h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
 }
 function cusView(){
   const m=new Map();CU.forEach(c=>{if(c.phone&&!m.has(c.phone))m.set(c.phone,c)});const L=[...m.values()];
@@ -970,6 +969,119 @@ function addrView(){
       h('button',{class:'btn s o',onclick:()=>{AD.filter(a=>!a.printed).forEach(a=>adSel.add(a.id));render()}},'Select all not printed'),h('button',{class:'btn s o',onclick:()=>{adSel.clear();render()}},'Clear'),
       h('button',{class:'btn s',onclick:()=>{if(!selL.length){alert('Select at least one address');return}printLabels(selL)}},'Print selected ('+selL.length+')'),h('button',{class:'btn s o',onclick:csvA},'Download CSV')),
     adLs?lsBox():'',groupsView(),selBar());
+}
+
+/* ===== Staff scanner: label barcode -> pack check -> India Post tracking barcode ===== */
+let scMode='home',scStep=1,scRid=null,scLid='',scCode='',scErr='',scStream=null,scTimer=null,scBusy=false;
+const IPOST=/^[A-Z]{2}\d{9}[A-Z]{2}$/,LBLID=/^A\d{7,}$/;
+const ZXU=['https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js','https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js','https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js'];
+async function loadZX(){
+  if(window.ZXing)return window.ZXing;
+  for(const u of ZXU){try{await new Promise((res,rej)=>{const e=document.createElement('script');e.src=u;e.onload=res;e.onerror=rej;document.head.append(e)});if(window.ZXing)return window.ZXing}catch(e){}}
+  throw new Error('Could not load the barcode reader. Check the internet, or type the code instead.');
+}
+function scanClose(){
+  clearInterval(scTimer);scTimer=null;
+  if(scStream){scStream.getTracks().forEach(t=>t.stop());scStream=null}
+  const o=document.getElementById('scov');if(o)o.remove();
+  scBusy=false;
+}
+function scanOpen(step){
+  scanClose();scStep=step;scErr='';
+  const st=h('div',{style:'font-size:14px;min-height:40px'},'Starting camera…');
+  const vid=h('video',{autoplay:'autoplay',playsinline:'playsinline',muted:'muted',style:'position:absolute;inset:0;width:100%;height:100%;object-fit:cover'});vid.muted=true;
+  const title=step===1?'Scan the label barcode':'Scan the India Post tracking barcode';
+  const ov=h('div',{id:'scov',style:'position:fixed;inset:0;z-index:50;background:#000;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)'},
+    h('div',{style:'display:flex;justify-content:space-between;align-items:center;padding:10px 16px;color:#fff'},h('b',{},title),h('button',{class:'btn s',onclick:scanClose},'\u2715 Close')),
+    h('div',{style:'flex:1;position:relative;overflow:hidden;min-height:0'},vid,h('div',{style:'position:absolute;left:8%;right:8%;top:50%;height:130px;margin-top:-65px;border:3px solid #5dcaa5;border-radius:14px;pointer-events:none'}),h('div',{style:'position:absolute;left:8%;right:8%;top:50%;height:2px;background:#e24b4a;pointer-events:none'})),
+    h('div',{style:'padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--card);color:var(--tx)'},st,h('button',{class:'btn o',style:'width:100%',onclick:()=>{scanClose();scMode='type';render()}},'Type code instead')));
+  document.body.append(ov);
+  const found=code=>{if(scBusy)return;scBusy=true;try{navigator.vibrate&&navigator.vibrate(80)}catch(e){}beep();scanClose();scanGot(String(code))};
+  (async()=>{
+    let s;
+    try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})}
+    catch(e){if(ov.isConnected)st.textContent='Camera not available'+(e&&e.name==='NotAllowedError'?': please allow camera access in the browser settings':'')+'. You can type the code instead.';return}
+    if(!ov.isConnected){s.getTracks().forEach(t=>t.stop());return}
+    scStream=s;vid.srcObject=s;try{await vid.play()}catch(e){}
+    st.textContent='Point the camera at the barcode. It scans by itself.';
+    let det=null;
+    try{if(window.BarcodeDetector){const f=await BarcodeDetector.getSupportedFormats(),w=['code_128','code_39'].filter(x=>f.includes(x));if(w.length)det=new BarcodeDetector({formats:w})}}catch(e){det=null}
+    let zr=null,cv=null;
+    if(!det){
+      try{const Z=await loadZX();zr=new Z.MultiFormatReader();const hn=new Map();hn.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.CODE_39]);hn.set(Z.DecodeHintType.TRY_HARDER,true);zr.setHints(hn);cv=document.createElement('canvas')}
+      catch(e){if(ov.isConnected)st.textContent=e.message||'Barcode reader failed. Type the code instead.';return}
+    }
+    if(!ov.isConnected)return;
+    let busy=false;
+    scTimer=setInterval(async()=>{
+      if(busy||scBusy||!vid.videoWidth)return;busy=true;
+      try{
+        if(det){const r=await det.detect(vid);if(r.length&&r[0].rawValue)found(r[0].rawValue)}
+        else{cv.width=vid.videoWidth;cv.height=vid.videoHeight;cv.getContext('2d',{willReadFrequently:true}).drawImage(vid,0,0);const Z=window.ZXing;const bm=new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv)));try{const res=zr.decode(bm);if(res)found(res.getText())}catch(e){}}
+      }catch(e){}
+      busy=false;
+    },300);
+  })();
+}
+function scanGot(raw){
+  const code=String(raw).trim().toUpperCase().replace(/\s+/g,'');
+  scErr='';
+  if(scStep===1){
+    const a=AD.find(x=>String(x.lid||'').toUpperCase()===code);
+    if(!a){scErr=IPOST.test(code)?'That is an India Post tracking code. Scan the label barcode first.':'This barcode is not one of our labels ('+code+'). Print the label first, or try again.';scMode='home';render();return}
+    const r=a.ref&&S.requests.find(x=>x.id===a.ref);
+    if(!r){scErr='No order found for this label ('+code+').';scMode='home';render();return}
+    scRid=r.id;scLid=code;scMode='pack';render();
+  }else{
+    if(LBLID.test(code)){scErr='That is the label barcode. Scan the India Post tracking barcode.';scMode='pack';render();return}
+    if(!IPOST.test(code)){scErr='That does not look like an India Post tracking code ('+code+'). It should look like EE123456789IN.';scMode='pack';render();return}
+    scCode=code;scMode='confirm';render();
+  }
+}
+function scanView(){
+  const r=scRid&&S.requests.find(x=>x.id===scRid);
+  const err=()=>scErr?h('div',{class:'note',style:'border-left-color:var(--wn);color:var(--wn);margin:10px 0'},scErr):'';
+  const bx=(l,v,sm)=>h('div',{class:'box',style:'margin:8px 0;border-color:var(--wn)'},h('div',{class:'mu'},l),h('div',{style:'font-size:'+(sm?'19':'24')+'px;font-weight:600;letter-spacing:.06em;word-break:break-all'},v));
+  if(scMode==='type'){
+    const inp=h('input',{placeholder:scStep===1?'Label code, e.g. A2211261':'Tracking code, e.g. EE123456789IN',autocapitalize:'characters'});
+    return h('div',{class:'box'},h('h3',{},scStep===1?'Type the label code':'Type the tracking code'),inp,err(),
+      h('div',{class:'row'},h('button',{class:'btn o',onclick:()=>{scMode=scStep===1?'home':'pack';scErr='';render()}},'Back'),h('button',{class:'btn',onclick:()=>{const v=inp.value.trim();if(!v){scErr='Enter the code first';render();return}scanGot(v)}},'Check')));
+  }
+  if(scMode==='pack'&&r){
+    const items=r.items||[],dn=items.filter(i=>i.sold).length,all=dn===items.length;
+    return h('div',{class:'box'},
+      h('b',{style:'font-size:17px'},r.name+' \u00b7 '+r.phone),h('div',{class:'mu'},'Order '+r.id+' \u00b7 Label '+scLid),
+      r.payment==='COD'?h('div',{style:'display:inline-block;margin:6px 0;padding:3px 10px;border-radius:10px;background:#ffd23f;color:#1c1b19;font-weight:800;font-size:13px'},'COD \u00b7 Collect \u20b9'+((r.bill&&(r.bill.final||r.bill.total))||0)):'',
+      r.addr?h('div',{class:'mu'},addrLines(r.addr).join(', ')+' - '+r.addr.pin):'',
+      r.track?h('div',{class:'note',style:'margin-top:8px'},'A tracking code is already saved for this order ('+r.track+'). Scanning a new one will replace it.'):'',
+      h('div',{class:'mu',style:'margin:10px 0 2px'},'Put each item in the packing cover, then tap its box. Stock is reduced when you tick.'),
+      items.map(i=>h('div',{class:'row',style:'border-top:1px solid var(--bd);padding-top:8px'},
+        h('div',{style:'width:56px;flex:none'},ph(S.products.find(p=>p.id===i.pid)||{code:i.code,img:i.t})),
+        h('div',{style:'flex:1'},h('b',{},i.name||i.code),h('div',{class:'mu'},i.code+' \u00b7 Size '+i.size+' \u00b7 Qty '+(i.q||1)),h('div',{class:'mu',style:'font-size:12px'},i.loc||'')),
+        h('button',{class:'btn'+(i.sold?'':' o'),style:'width:46px;height:46px;padding:0;font-size:22px;flex:none','aria-label':'Packed',onclick:()=>{scErr='';soldToggle(r,i)}},i.sold?'\u2713':''))),
+      h('div',{class:'row',style:'justify-content:space-between;border-top:1px solid var(--bd);padding-top:10px'},h('b',{},dn+' of '+items.length+' packed')),
+      err(),
+      h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn o',onclick:()=>{scErr='';scMode='home';render()}},'Back'),h('button',{class:'btn'+(all?'':' o'),style:'flex:1',onclick:()=>{if(!all){scErr='Tick all items first';render();return}scanOpen(2)}},'Next: scan tracking code')));
+  }
+  if(scMode==='confirm'&&r){
+    return h('div',{class:'box'},h('h3',{style:'margin:0 0 4px'},'Check tracking code'),bx('India Post tracking code',scCode),
+      h('div',{},'For: '+r.name+' \u00b7 Order '+r.id),
+      r.track&&r.track!==scCode?h('div',{class:'note',style:'margin-top:8px'},'This replaces the earlier code '+r.track+'.'):'',
+      h('div',{class:'mu',style:'margin-top:6px'},'This will show in the customer account under My orders, and the order becomes Out for delivery.'),
+      h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn o',onclick:()=>scanOpen(2)},'Scan again'),h('button',{class:'btn',style:'flex:1',onclick:()=>{r.track=scCode;r.status='Delivering';r.shipped=true;scMode='done';save();render()}},'OK, save')));
+  }
+  if(scMode==='done'&&r){
+    return h('div',{class:'box',style:'text-align:center'},
+      h('div',{style:'width:54px;height:54px;border-radius:50%;background:var(--ac);color:var(--acx);font-size:30px;display:flex;align-items:center;justify-content:center;margin:6px auto 10px'},'\u2713'),
+      h('h3',{style:'margin:0'},'Saved to '+r.name+' account'),h('div',{class:'mu',style:'margin:4px 0 14px'},(r.track||scCode)+' \u00b7 Out for delivery'),
+      h('a',{class:'btn',style:'display:block;text-align:center',href:orderMsgUrl(r),target:'_blank',rel:'noopener'},'Send tracking on WhatsApp'),
+      h('button',{class:'btn o',style:'width:100%;margin-top:8px',onclick:()=>{scRid=null;scMode='home';scanOpen(1)}},'Scan next parcel'));
+  }
+  return h('div',{class:'box',style:'text-align:center'},
+    h('div',{style:'font-size:44px;line-height:1.2'},'\u25A6'),h('h3',{style:'margin:4px 0'},'Scanner'),h('div',{class:'mu',style:'margin-bottom:14px'},'Scan the label barcode to check and pack an order'),
+    h('button',{class:'btn',style:'width:100%;padding:14px;font-size:17px',onclick:()=>scanOpen(1)},'Tap to scan'),
+    err(),
+    h('button',{class:'btn o s',style:'margin-top:12px',onclick:()=>{scErr='';scStep=1;scMode='type';render()}},'Type code instead'));
 }
 function parseSizes(t){const out=[];t.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>{const m=s.match(/^(\d+)\s*-\s*(\d+)(?:\s*\/\s*(\d+))?$/);if(m){const a=+m[1],b=+m[2],st=+(m[3]||1);for(let v=a;v<=b;v+=st)out.push(String(v))}else out.push(s)});return [...new Set(out)]}
 function procImg(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const sc=m=>{const k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c};const th=sc(700).toDataURL('image/jpeg',.8);sc(3000).toBlob(b=>cb(th,b),'image/jpeg',.92)};im.src=r.result};r.readAsDataURL(f)}
