@@ -96,7 +96,7 @@ textarea{font:inherit;color:inherit;width:100%;padding:10px;margin-top:6px;borde
 .gh{display:flex;align-items:center;gap:8px;margin:12px 0 8px;padding:9px 11px;border-radius:12px;background:var(--card);border:1px solid var(--bd);cursor:pointer;flex-wrap:wrap}.gh.t{border-color:var(--ac)}.gh .sp{flex:1}
 .cal{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-bottom:10px}
 .cg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-top:8px}.cg button{border:1px solid transparent;background:transparent;color:var(--tx);padding:8px 0;border-radius:8px;font:inherit;font-size:14px;cursor:pointer}.cg .has{border-color:var(--ac)}.cg .no{color:var(--mu);opacity:.55}.cg .sel{background:var(--ac);color:var(--acx);font-weight:700;opacity:1}
-.selbar{position:sticky;bottom:8px;z-index:5;background:var(--card);border:1px solid var(--ac);border-radius:14px;padding:10px 12px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.selbar{position:sticky;bottom:8px;z-index:5;background:var(--card);border:1px solid var(--ac);border-radius:14px;padding:10px 12px;margin-top:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
 .ofpt{font-size:15px;font-weight:700;line-height:1.25;margin:4px 0 10px;max-width:58%;color:#000}
 .ofgo{display:inline-block;background:#000;color:#fff;border:0;border-radius:24px;padding:9px 16px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px}
 .ofdots{display:flex;justify-content:center;gap:6px;margin-top:10px}
@@ -739,13 +739,69 @@ function labelIds(list){
   list.slice().sort((a,b)=>(a.time||0)-(b.time||0)).forEach(a=>{if(!a.lid){seq++;a.lday=dk;a.lseq=seq;a.lid='A'+dk+seq;setDoc(doc(db,'addresses',a.id),clean(a)).catch(e=>console.log(e))}});
 }
 function printLabels(list,test){
-  const w=4,hh=6;if(!test)labelIds(list);
+  const w=4,hh=6;if(!test){list=list.slice().sort((x,y)=>(x.time||0)-(y.time||0));labelIds(list)}
   let st=document.getElementById('pgs');if(!st){st=document.createElement('style');st.id='pgs';document.head.append(st)}
   st.textContent='@page{size:'+w+'in '+hh+'in;margin:0}@media print{body>*:not(#pa){display:none!important}#pa{display:block!important}.lb{width:'+w+'in;height:'+hh+'in}}';
   let pa=document.getElementById('pa');if(!pa){pa=document.createElement('div');pa.id='pa';document.body.append(pa)}
   pa.replaceChildren(...list.map(labelEl));
   if(!test)window.addEventListener('afterprint',()=>{setTimeout(()=>{if(confirm('Mark '+list.length+' label(s) as printed?'))list.forEach(a=>{a.printed=true;setDoc(doc(db,'addresses',a.id),clean(a))})},300)},{once:true});
   setTimeout(()=>window.print(),150);
+}
+
+const PDFW=[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584];
+const pdW=(t,sz)=>{let w=0;for(const c of t){const k=c.charCodeAt(0);w+=(k>=32&&k<=126?PDFW[k-32]:556)}return w*sz/1000};
+const pdWrap=(t,sz,max)=>{const o=[];let cur='';String(t).split(/\s+/).filter(Boolean).forEach(wd=>{const tr=cur?cur+' '+wd:wd;if(!cur||pdW(tr,sz)<=max)cur=tr;else{o.push(cur);cur=wd}});if(cur)o.push(cur);return o};
+function buildPdf(list,mode){
+  const a4=false,PWd=288,PHt=432,ox=0,oy=0;let bad=false;
+  const esc=t=>String(t).replace(/[^\x20-\x7e]/g,()=>{bad=true;return '?'}).replace(/([\\()])/g,'\\$1');
+  const f=n=>(+n).toFixed(2);
+  const pages=list.map(a=>{
+    let c='';const W=288,H=432,IL=16.5,IR=W-16.5,IW=IR-IL,L=lbCfg(),amt=codAmt(a);
+    const Y=y=>PHt-(oy+y),X=x=>ox+x;
+    const base=(top,sz,lh)=>top+(lh-1.117*sz)/2+.905*sz;
+    const txt=(t,x,top,sz,lh,al,white,tc)=>{t=String(t);const w=pdW(t,sz)+(tc?tc*(t.length-1):0);const xx=al==='c'?x-w/2:al==='r'?x-w:x;c+=(white?'1 g ':'0 g ')+'BT /F1 '+f(sz)+' Tf '+(tc?f(tc)+' Tc ':'0 Tc ')+'1 0 0 1 '+f(X(xx))+' '+f(Y(base(top,sz,lh)))+' Tm ('+esc(t)+') Tj ET\n'};
+    const rect=(x,y,w,h,g)=>{c+=(g===undefined?'0':g)+' g '+f(X(x))+' '+f(Y(y+h))+' '+f(w)+' '+f(h)+' re f\n'};
+    const dash=y=>{c+='0.4 G 0.75 w [2.5 2] 0 d '+f(X(IL))+' '+f(Y(y+.375))+' m '+f(X(IR))+' '+f(Y(y+.375))+' l S [] 0 d\n'};
+    c+='0 G 1.5 w '+f(X(3.75))+' '+f(Y(3.75+(H-7.5)))+' '+f(W-7.5)+' '+f(H-7.5)+' re S\n';
+    let y=16.5;
+    txt('INDIA POST PARCEL',W/2,y,14,16.8,'c');txt('CONTRACTUAL',W/2,y+16.8,14,16.8,'c');y+=33.6+6.48;
+    rect(IL,y,IW,1.875);y+=1.875+8.64+1.44;
+    if(amt>0){const h1=11*1.15,h2=15*1.15,bh=6.48*2+h1+2.16+h2;rect(IL,y,IW,bh);txt('AMOUNT TO BE COLLECTED:',W/2,y+6.48,11,h1,'c',true);txt('Rs. '+Number(amt).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' (COD)',W/2,y+6.48+h1+2.16,15,h2,'c',true);y+=bh+8.64}else y+=36;
+    txt('Customer ID: '+L.cust+' | Contract ID: '+L.con,W/2,y,7.8,9,'c');y+=9+5.04;
+    rect(IL,y,IW,.75,.73);y+=.75+5.76+3.6;
+    txt('SHIP TO:',IL,y,12.5,14.4,'l');const uw=pdW('SHIP TO:',12.5);rect(IL,base(y,12.5,14.4)+1.6,uw,.9);y+=14.4+5.04;
+    const lm=String(a.landmark||'').trim(),p10=x=>{const d=String(x||'').replace(/\D/g,'').slice(-10);return d?'+91'+d:''};
+    const raw=[a.name,[a.house,a.street].filter(Boolean).join(', '),lm?(/^near\b/i.test(lm)?lm:'Near '+lm):'',[a.city,a.district&&a.district!==a.city?a.district:'',a.state].filter(Boolean).join(', '),'PIN: '+a.pin,'MOB: '+p10(a.phone),a.phone2?'MOB 2: '+p10(a.phone2):''].filter(Boolean);
+    const fa=[L.name].concat(L.addr.split('\n').map(x=>x.trim()).filter(Boolean),['MOB No. '+L.mob]).flatMap(t=>pdWrap(t,8.2,IW));
+    let yE=415.5;const fTop=yE-fa.length*11.48,fHead=fTop-2.88-14.4,hrTop=fHead-3.6-1.875,d2=hrTop-3.6-.75,oBot=d2-4.32,oTop=oBot-36.3,d1=oTop-4.32-.75;
+    let sz=10,lines;for(;;){lines=raw.flatMap(t=>pdWrap(t,sz,IW));if(y+lines.length*sz*1.38<=d1-4||sz<=7)break;sz-=.5}
+    lines.forEach((t,i)=>txt(t,IL,y+i*sz*1.38,sz,sz*1.38,'l'));
+    dash(d1);
+    const id=a.lid||'A000000';txt('ORDER ID: '+id,IL,oTop+18.15-6.3,10.5,12.6,'l');
+    {const v=[104];let sm=104;[...id].forEach((ch,i)=>{const x=ch.charCodeAt(0)-32;v.push(x);sm+=x*(i+1)});v.push(sm%103,106);const bars=v.map(i=>C128[i]).join(''),tot=[...bars].reduce((t,d)=>t+ +d,0),bw=126,bx=IR-bw;let xm=0;[...bars].forEach((d,i)=>{if(i%2===0)rect(bx+xm*bw/tot,oTop,+d*bw/tot,27.36);xm+=+d});txt(id,bx+bw/2,oTop+27.36+1.44,6.5,7.5,'c',false,.78)}
+    dash(d2);
+    rect(IL,hrTop,IW,1.875);
+    txt('FROM:',IL,fHead,12.5,14.4,'l');rect(IL,base(fHead,12.5,14.4)+1.6,pdW('FROM:',12.5),.9);
+    fa.forEach((t,i)=>txt(t,IL,fTop+i*11.48,8.2,11.48,'l'));
+    if(a4)c+='0.5 g BT /F1 7 Tf 0 Tc 1 0 0 1 '+f(X(0)+0)+' '+f(Y(H+16))+' Tm (Print at 100% / Actual size, no "fit to page". Cut along the black border.) Tj ET\n';
+    return c});
+  const objs=['<< /Type /Catalog /Pages 2 0 R >>','','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'];
+  const kids=[];pages.forEach((c,i)=>{const po=4+2*i;kids.push(po+' 0 R');objs.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+f(PWd)+' '+f(PHt)+'] /Resources << /Font << /F1 3 0 R >> >> /Contents '+(po+1)+' 0 R >>');objs.push('<< /Length '+c.length+' >>\nstream\n'+c+'endstream')});
+  objs[1]='<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+pages.length+' >>';
+  let out='%PDF-1.4\n';const off=[];objs.forEach((o,i)=>{off.push(out.length);out+=(i+1)+' 0 obj\n'+o+'\nendobj\n'});
+  const xr=out.length;out+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n'+off.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+(objs.length+1)+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF';
+  const bytes=new Uint8Array(out.length);for(let i=0;i<out.length;i++)bytes[i]=out.charCodeAt(i)&255;
+  return {bytes,bad};
+}
+async function labelsPdf(list,how){
+  list=list.slice().sort((x,y)=>(x.time||0)-(y.time||0));labelIds(list);
+  const r=buildPdf(list,'4x6'),name='airclub-labels-'+ymd(new Date())+'-'+list.length+(list.length>1?'-labels':'-label')+'.pdf';
+  const file=new File([r.bytes],name,{type:'application/pdf'});
+  if(r.bad)alert('Some letters (for example Malayalam letters) cannot be shown in the PDF and were replaced with ?. Please edit that address in English letters.');
+  let ok=true;
+  if(how==='share'&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name})}catch(e){ok=e&&e.name!=='AbortError'?false:false;if(e&&e.name!=='AbortError')alert('Could not share: '+e.message)}}
+  else{const u=URL.createObjectURL(file),l=document.createElement('a');l.href=u;l.download=name;document.body.append(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
+  setTimeout(()=>{if(confirm('Mark '+list.length+' label(s) as printed?'))list.forEach(a=>{a.printed=true;setDoc(doc(db,'addresses',a.id),clean(a))})},800);
 }
 function addrView(){
   const url=location.origin+'/address.html',t=adQ.trim().toLowerCase();
@@ -760,7 +816,7 @@ function addrView(){
     h('div',{},addrLines(a).join(', ')+' - '+a.pin),
     a.ref?h('div',{class:'mu'},'Ref: '+a.ref):'',
     codAmt(a)>0?h('div',{style:'display:inline-block;margin:4px 0;padding:3px 9px;border-radius:10px;background:#ffd23f;color:#1c1b19;font-weight:800;font-size:12px'},'COD \u00b7 Collect \u20b9'+codAmt(a)):'',a.lid?h('div',{class:'mu'},'Label ID: '+a.lid):'',
-    h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn s',onclick:()=>printLabels([a])},'Print label'),h('button',{class:'btn s o',onclick:()=>{a.printed=!a.printed;saveA(a)}},a.printed?'Mark not printed':'Mark printed'),h('button',{class:'btn s o',onclick:()=>{adEdit=a.id;render()}},'Edit'),h('button',{class:'btn s o',onclick:()=>{if(confirm('Delete this address?')){adSel.delete(a.id);deleteDoc(doc(db,'addresses',a.id))}}},'Delete')));
+    h('div',{class:'row',style:'flex-wrap:wrap'},h('button',{class:'btn s',onclick:()=>printLabels([a])},'Print label'),h('button',{class:'btn s o',onclick:()=>labelsPdf([a],'share')},'PDF'),h('button',{class:'btn s o',onclick:()=>{a.printed=!a.printed;saveA(a)}},a.printed?'Mark not printed':'Mark printed'),h('button',{class:'btn s o',onclick:()=>{adEdit=a.id;render()}},'Edit'),h('button',{class:'btn s o',onclick:()=>{if(confirm('Delete this address?')){adSel.delete(a.id);deleteDoc(doc(db,'addresses',a.id))}}},'Delete')));
   const csvA=()=>{const K=['name','phone','phone2','house','street','landmark','city','district','state','pin','ref'];const rows=[K.concat(['date','printed','labelId','cod'])].concat(AD.map(a=>K.map(k=>a[k]||'').concat([a.time?ymd(new Date(a.time)):'',a.printed?'yes':'no',a.lid||'',codAmt(a)||''])));const tx=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+tx],{type:'text/csv'}));l.download='airclub-addresses.csv';document.body.append(l);l.click();l.remove()};
   const lsBox=()=>{
     const L=lbCfg();
@@ -809,7 +865,7 @@ function addrView(){
           h('button',{class:'btn s'+(all?'':' o'),onclick:e=>{e.stopPropagation();arr.forEach(a=>all?adSel.delete(a.id):adSel.add(a.id));render()}},all?'\u2713 All selected':'Select all'),
           adDay?'':h('span',{class:'mu'},open?'\u25be':'\u25b8')),
         open?arr.map(a=>adEdit===a.id?editCard(a):card(a)):'')})};
-  const selBar=()=>selL.length?h('div',{class:'selbar'},h('div',{},h('b',{},selL.length+' selected'),h('button',{class:'btn s o',style:'margin-left:8px',onclick:()=>{adSel.clear();render()}},'Clear')),h('button',{class:'btn',onclick:()=>printLabels(selL)},'Print '+selL.length+(selL.length===1?' label':' labels'))):'';
+  const selBar=()=>selL.length?h('div',{class:'selbar'},h('div',{style:'display:flex;justify-content:space-between;align-items:center;width:100%'},h('b',{},selL.length+' selected'),h('button',{class:'btn s o',onclick:()=>{adSel.clear();render()}},'Clear')),h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;width:100%'},(navigator.canShare?h('button',{class:'btn',style:'flex:1',onclick:()=>labelsPdf(selL,'share')},'Share PDF'):''),h('button',{class:'btn'+(navigator.canShare?' o':''),style:'flex:1',onclick:()=>labelsPdf(selL,'dl')},'Download PDF'),h('button',{class:'btn o',style:'flex:1',onclick:()=>printLabels(selL)},'Print ('+selL.length+')'))):'';
   return h('div',{},
     h('div',{class:'box'},h('b',{},'Customer address form link'),h('div',{class:'mu',style:'word-break:break-all;margin:4px 0'},url),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{navigator.clipboard.writeText(url).then(()=>alert('Link copied'),()=>alert(url))}},'Copy link'),h('a',{class:'btn s o',href:url,target:'_blank',rel:'noopener'},'Open'))),
     h('div',{class:'chips'},[['all','All'],['new','Not printed'],['done','Printed']].map(([k,l])=>h('button',{class:'chip'+(adF===k?' on':''),onclick:()=>{adF=k;render()}},l))),
