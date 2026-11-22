@@ -81,6 +81,17 @@ input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10
 .ofcs{font-size:11px;font-weight:600;color:var(--pr);margin:2px 0 0}
 .ofbv{position:absolute;top:8px;right:8px;font-size:9px;font-weight:800;letter-spacing:.06em;background:#ffd23f;color:#1c1b19;border-radius:8px;padding:2px 6px}
 @media (prefers-reduced-motion:reduce){.ofh:before,.ofdot,.ofpg i,.oftk{animation:none}.ofvp{overflow-x:auto}}
+.ofh{background:#FFFFFF!important;color:#000;border:1px solid #e4dfd6;min-height:190px}
+.ofh.hp{min-height:230px}
+.ofh:before{display:none}
+.ofch{background:rgba(0,0,0,.08);color:#000}
+.offo{color:#000;opacity:1}
+.ofpr{color:#000;text-shadow:none}
+.ofds{color:#000;max-width:150px}
+.ofen{background:rgba(0,0,0,.08);color:#000}
+.ofpg{background:rgba(0,0,0,.1)}.ofpg i{background:#000}
+.ofrb{z-index:3}
+.ofpic{position:absolute;right:16px;top:18px;width:clamp(100px,34%,140px);aspect-ratio:3/4;border-radius:14px;border:4px solid #fff;box-shadow:0 8px 22px rgba(0,0,0,.28);background-color:#ddd;background-size:cover;background-position:center;transform:rotate(3deg);cursor:zoom-in;z-index:2}
 
 .dvb{margin:14px 0;border:1px solid var(--bd);border-radius:14px;background:var(--card);padding:14px;position:relative}
 .dvb h4{font-size:11px;letter-spacing:.12em;color:var(--mu);margin:0 0 8px;font-weight:700}
@@ -389,10 +400,20 @@ function offerMark(){document.querySelectorAll('.ofcd').forEach(b=>b.classList.t
 function offerHero(){
   const el=document.getElementById('ofh'),L=offerCards();if(!el||!L.length)return;
   if(offerCur>=L.length)offerCur=0;
-  const c=L[offerCur],p=ofCol(c,offerCur);
-  el.style.background=p.g;
-  el.replaceChildren(c.save?h('div',{class:'ofrb'},c.save):'',h('span',{class:'ofch'},c.label||'Offer'),c.big?h('p',{class:'offo'},c.big):'',h('p',{class:'ofpr'},ofP(c.price)),c.desc?h('p',{class:'ofds'},c.desc):'',h('span',{class:'ofen',id:'ofen'}),L.length>1?h('div',{class:'ofpg'},h('i',{})):'');
+  const c=L[offerCur];
+  const key=offerCur+':'+c.id,pool=ofPool(c);
+  if(ofPhoto.k!==key||(ofPhoto.pid&&!pool.some(x=>x.id===ofPhoto.pid))){ofPhoto={k:key,pid:pool.length?pool[Math.floor(Math.random()*pool.length)].id:null,ix:Math.random()}}
+  const pp=pool.find(x=>x.id===ofPhoto.pid),ph0=pp?photosOf(pp):[],pic=ph0.length?ph0[Math.floor(ofPhoto.ix*ph0.length)]:null;
+  el.style.background='#FFFFFF';el.classList.toggle('hp',!!pic);
+  el.replaceChildren(c.save?h('div',{class:'ofrb'},c.save):'',pic?h('div',{class:'ofpic',style:'background-image:url("'+pic.t+'")',onclick:()=>openZoom2(pp)}):'',h('span',{class:'ofch'},c.label||'Offer'),c.big?h('p',{class:'offo'},c.big):'',h('p',{class:'ofpr'},ofP(c.price)),c.desc?h('p',{class:'ofds'},c.desc):'',h('span',{class:'ofen',id:'ofen'}),L.length>1?h('div',{class:'ofpg'},h('i',{})):'');
   ofCountdown();
+}
+let ofPhoto={k:null,pid:null,ix:0};
+const ofNorm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'').replace(/s$/,'');
+function ofPool(c){
+  if(c.photo==='-')return [];
+  const ok=p=>photosOf(p).length>0&&(c.photo?p.cat===c.photo:(ofNorm(c.label)&&ofNorm(p.cat)===ofNorm(c.label)));
+  return S.products.filter(ok);
 }
 function ofCard(c,i){const p=ofCol(c,i);return h('button',{class:'ofcd',style:'--k:'+p.k,'data-i':String(i),onclick:()=>{offerCur=i;offerHero();offerMark();startOfferTimer()}},c.best?h('span',{class:'ofbv'},'BEST VALUE'):'',h('p',{class:'ofcc'},c.label||''),h('p',{class:'ofcf'},c.big||''),h('p',{class:'ofcp'},ofP(c.price)),c.save?h('p',{class:'ofcs'},c.save):'')}
 function ofSizeStrip(){
@@ -430,7 +451,8 @@ function offersEditor(){
       fld(c,'price','Price, e.g. 999','e.g. 999'),
       fld(c,'save','Small line, e.g. Save \u20b9198','e.g. Save \u20b9198'),
       fld(c,'desc','Banner description (optional)','e.g. Pick any 3 shirt models'),
-      h('label',{},'Colour'),cs,
+      h('label',{},'Photo on the big banner'),(()=>{const ps=h('select',{onchange:e=>upd(c.id,x=>{x.photo=e.target.value})},h('option',{value:''},'Automatic (match the small heading)'),cats().map(k=>h('option',{value:k},'Photos from '+k)),h('option',{value:'-'},'No photo'));ps.value=c.photo||'';return ps})(),
+      h('label',{},'Colour (small card on the strip)'),cs,
       h('label',{style:'display:flex;align-items:center;gap:8px;margin-top:8px'},bv,'Show BEST VALUE badge'),
       h('div',{class:'row'},h('button',{class:'btn o s',onclick:()=>mv(-1)},'Move earlier'),h('button',{class:'btn o s',onclick:()=>mv(1)},'Move later'),h('button',{class:'btn o s',onclick:()=>{if(!confirm('Delete this box?'))return;S.cfg.offerCards=(S.cfg.offerCards||[]).filter(x=>x.id!==c.id);save();render()}},'Delete')));
   };
