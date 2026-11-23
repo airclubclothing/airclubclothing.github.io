@@ -344,7 +344,7 @@ function shop(){
     h('input',{id:'sq',placeholder:'Search model code or name',value:q,oninput:e=>{q=e.target.value;render();const x=document.getElementById('sq');x.focus();x.setSelectionRange(q.length,q.length)}}),
     h('div',{class:'chips'},['All',...cats().filter(c=>S.products.some(p=>p.cat===c))].map(c=>h('button',{class:'chip'+(c===cat?' on':''),onclick:()=>{cat=c;size='All';render()}},c))),
     h('div',{class:'chips'},['All',...allSizes].map(s=>h('button',{class:'chip'+(s===size?' on':''),onclick:()=>{size=s;render()}},s==='All'?'All sizes':s))),
-    list.length?h('div',{class:'grid'},list.map(p=>h('div',{class:'card'},ph(p),h('div',{class:'ci'},h('b',{},p.name),h('small',{},p.code+(S.cfg.showPrice&&unitPrice(p)?' · ₹'+unitPrice(p):'')),(S.cfg.showPrice&&offerLine(p.cat))?h('div',{class:'mu',style:'font-size:12px'},offerLine(p.cat)):'',hasChart(p)?h('div',{},h('a',{href:'#',style:'font-size:12px;color:var(--mu);text-decoration:underline',onclick:e=>{e.preventDefault();e.stopPropagation();openZoom2(p,true)}},'Size chart')):'',
+    list.length?h('div',{class:'grid'},list.map(p=>h('div',{class:'card'},ph(p),h('div',{class:'ci'},h('b',{},p.name),h('small',{},p.code+(S.cfg.showPrice&&unitPrice(p)?' · ₹'+unitPrice(p):'')),(S.cfg.showPrice&&offerLine(p.cat))?h('div',{class:'mu',style:'font-size:12px'},offerLine(p.cat)):'',(S.cfg.showPrice&&comboLine(p.cat))?h('div',{class:'mu',style:'font-size:12px;color:var(--ac)'},'Combo: '+comboLine(p.cat)):'',hasChart(p)?h('div',{},h('a',{href:'#',style:'font-size:12px;color:var(--mu);text-decoration:underline',onclick:e=>{e.preventDefault();e.stopPropagation();openZoom2(p,true)}},'Size chart')):'',
       h('div',{class:'sz'},p.sizes.filter(s=>size==='All'||s===size).map(s=>h('button',isOut(p,s)?{class:'out',disabled:'disabled'}:{class:inB(p.id,s)?'on':'',onclick:()=>{tapSize(p.id,s);render()}},s))))))):h('p',{class:'mu'},'No styles here yet.'),
     (S.cfg.phone||S.cfg.addr||S.cfg.timing)?h('div',{class:'box'},h('b',{},'Visit us'),S.cfg.addr?h('div',{class:'mu'},S.cfg.addr):'',S.cfg.timing?h('div',{class:'mu'},S.cfg.timing):'',S.cfg.phone?h('div',{class:'mu'},'Call: '+S.cfg.phone):''):'',
     h('div',{class:'bar'},barLeft(),h('button',{class:'btn',onclick:()=>{if(!C){need=true;A.msg='Please log in or create an account to send your order.';authView='login';render();window.scrollTo(0,0);return}rv='pick';review()}},'Review & send')));
@@ -431,12 +431,23 @@ const extraRate=t=>t.length?Math.round(t[t.length-1]/t.length):0;
 const priceFor=(t,n)=>{const N=t.length;return n<1?0:n<=N?t[n-1]:t[N-1]+(n-N)*extraRate(t)};
 const unitPrice=p=>{const t=tiersOf(p.cat);return t.length?t[0]:(p.price||'')};
 const offerLine=c=>tiersOf(c).slice(1).map((v,i)=>(i+2)+' for \u20b9'+v).join(' \u00b7 ');
+const combosOn=()=>(S.cfg.combos||[]).filter(c=>c&&c.on!==false&&Number(c.price)>0&&c.q&&Object.keys(c.q).length);
 function calc(list){
   const g={};let other=0,unp=0;
   list.forEach(i=>{const q=i.q||1,t=tiersOf(i.cat);if(t.length){g[i.cat]=(g[i.cat]||0)+q}else{const pr=Number(i.price);if(pr>0)other+=pr*q;else unp+=q}});
-  const lines=Object.keys(g).map(c=>{const t=tiersOf(c),n=g[c],tot=priceFor(t,n),mrp=n*t[0];return{cat:c,n,mrp,tot,disc:Math.max(0,mrp-tot)}});
-  const sum=k=>lines.reduce((a,l)=>a+l[k],0);
-  return{lines,other,unp,total:sum('tot')+other,mrp:sum('mrp')+other,disc:sum('disc')};
+  const CB=combosOn().filter(c=>Object.keys(c.q).every(k=>tiersOf(k).length&&g[k]>=c.q[k])).slice(0,10);
+  const rest=cnt=>Object.keys(cnt).reduce((s,k)=>s+priceFor(tiersOf(k),cnt[k]),0);
+  let best={tot:Infinity,use:[],cnt:g};
+  const go=(i,cnt,use,cost)=>{
+    if(i===CB.length){const tot=cost+rest(cnt);if(tot<best.tot)best={tot,use:use.slice(),cnt:Object.assign({},cnt)};return}
+    const c=CB[i],cc=Object.assign({},cnt);let k=0;
+    for(;;){go(i+1,cc,use.concat(k?[{c,k}]:[]),cost+k*Number(c.price));if(!Object.keys(c.q).every(x=>cc[x]>=c.q[x]))break;Object.keys(c.q).forEach(x=>{cc[x]-=c.q[x]});k++}
+  };
+  go(0,g,[],0);
+  const lines=Object.keys(g).filter(c=>best.cnt[c]>0).map(c=>{const t=tiersOf(c),n=best.cnt[c],tot=priceFor(t,n),mrp=n*t[0];return{cat:c,n,mrp,tot,disc:Math.max(0,mrp-tot)}});
+  const cmb=best.use.map(({c,k})=>{const mrp=k*Object.keys(c.q).reduce((s,x)=>s+c.q[x]*tiersOf(x)[0],0),tot=k*Number(c.price);return{id:c.id,name:c.name||cmbName(c.q),k,mrp,tot,disc:Math.max(0,mrp-tot)}});
+  const sum=k=>lines.reduce((a,l)=>a+l[k],0)+cmb.reduce((a,l)=>a+l[k],0);
+  return{lines,cmb,other,unp,total:sum('tot')+other,mrp:sum('mrp')+other,disc:sum('disc')};
 }
 const bl=()=>basket.map(b=>{const p=S.products.find(x=>x.id===b.pid)||{};return{cat:p.cat,q:b.q||1,price:p.price}});
 function priceBox(list){
@@ -444,6 +455,7 @@ function priceBox(list){
   const b=calc(list);if(!(b.total>0))return '';
   const ln=(l,v,st)=>h('div',{class:'row',style:'justify-content:space-between;margin:3px 0'},h('span',{},l),h('span',{style:st||''},v));
   return h('div',{class:'box',style:'margin:10px 0 0'},
+    (b.cmb||[]).map(c=>ln('Combo: '+c.name+(c.k>1?' \u00d7 '+c.k:''),'\u20b9'+c.tot,'font-weight:600')),
     b.lines.map(l=>ln(l.cat+' '+l.n+' \u00d7 \u20b9'+tiersOf(l.cat)[0],'\u20b9'+l.mrp,l.disc>0?'text-decoration:line-through;color:var(--mu)':'')),
     b.other>0?ln('Other items','\u20b9'+b.other):'',
     b.disc>0?ln('Offer discount','\u2212 \u20b9'+b.disc,'color:var(--ac);font-weight:600'):'',
@@ -452,7 +464,7 @@ function priceBox(list){
 }
 function billStaff(b){
   return h('div',{class:'box',style:'margin:8px 0'},h('b',{},'Total \u20b9'+b.total),
-    h('div',{class:'mu'},(b.lines||[]).map(l=>l.cat+': '+l.n+' pcs = \u20b9'+l.tot).concat(b.other>0?['Others \u20b9'+b.other]:[]).join(' \u00b7 ')),
+    h('div',{class:'mu'},(b.cmb||[]).map(c=>'Combo '+c.name+(c.k>1?' x'+c.k:'')+' = \u20b9'+c.tot).concat((b.lines||[]).map(l=>l.cat+': '+l.n+' pcs = \u20b9'+l.tot)).concat(b.other>0?['Others \u20b9'+b.other]:[]).join(' \u00b7 ')),
     b.disc>0?h('div',{class:'mu'},'MRP \u20b9'+b.mrp+' \u00b7 Offer discount \u20b9'+b.disc):'',b.final?h('div',{class:'mu'},'Delivery \u20b9'+b.delivery+' \u00b7 Final price \u20b9'+b.final):'');
 }
 function dtl(key,sum,...kids){return h('details',Object.assign({ontoggle:e=>{e.target.open?chOpen.add(key):chOpen.delete(key)}},chOpen.has(key)?{open:''}:{}),h('summary',{style:'cursor:pointer;margin:10px 0'},sum),...kids)}
@@ -727,7 +739,7 @@ function review(){
 function staff(){
   if(!staffOK){const em=h('input',{type:'email',placeholder:'Staff email'}),pw=h('input',{type:'password',placeholder:'Password'});
     return h('div',{class:'box'},h('h2',{},'Staff login'),h('label',{},'Email'),em,h('label',{},'Password'),pw,h('div',{class:'row'},h('button',{class:'btn',onclick:async()=>{try{await signInWithEmailAndPassword(auth,em.value.trim(),pw.value)}catch(e){alert('Login failed: '+e.code)}}},'Open')))}
-  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='bil'?' on':''),onclick:()=>{tab='bil';render()}},'Billing'),h('button',{class:'chip'+(tab==='plb'?' on':''),onclick:()=>{tab='plb';render()}},'Price labels'),h('button',{class:'chip'+(tab==='sales'?' on':''),onclick:()=>{tab='sales';render()}},'Sales ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='scn'?' on':''),onclick:()=>{tab='scn';render()}},'Scanner'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='off'?' on':''),onclick:()=>{tab='off';render()}},'Offers'),h('button',{class:'chip'+(tab==='del'?' on':''),onclick:()=>{tab='del';render()}},'Delivery'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='bil'?bzView():tab==='plb'?plbView():tab==='sales'?salesView():tab==='scn'?scanView():tab==='cat'?catsView():tab==='off'?offersView():tab==='del'?deliveryView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
+  return h('div',{},h('div',{class:'chips'},h('button',{class:'chip'+(tab==='bil'?' on':''),onclick:()=>{tab='bil';render()}},'Billing'),h('button',{class:'chip'+(tab==='plb'?' on':''),onclick:()=>{tab='plb';render()}},'Price labels'),h('button',{class:'chip'+(tab==='sales'?' on':''),onclick:()=>{tab='sales';render()}},'Sales ('+S.requests.filter(r=>r.status==='New').length+' new)'),h('button',{class:'chip'+(tab==='scn'?' on':''),onclick:()=>{tab='scn';render()}},'Scanner'),h('button',{class:'chip'+(tab==='prod'?' on':''),onclick:()=>{tab='prod';render()}},'Products'),h('button',{class:'chip'+(tab==='cat'?' on':''),onclick:()=>{tab='cat';render()}},'Categories & sizes'),h('button',{class:'chip'+(tab==='off'?' on':''),onclick:()=>{tab='off';render()}},'Offers'),h('button',{class:'chip'+(tab==='cmb'?' on':''),onclick:()=>{tab='cmb';render()}},'Combo'),h('button',{class:'chip'+(tab==='del'?' on':''),onclick:()=>{tab='del';render()}},'Delivery'),h('button',{class:'chip'+(tab==='set'?' on':''),onclick:()=>{tab='set';render()}},'Settings'),h('button',{class:'chip'+(tab==='cus'?' on':''),onclick:()=>{tab='cus';render()}},'Customers'),h('button',{class:'chip'+(tab==='adr'?' on':''),onclick:()=>{tab='adr';render()}},'Addresses ('+AD.filter(a=>!a.printed).length+')'),h('button',{class:'chip',onclick:()=>signOut(auth)},'Sign out')),tab==='cmb'?comboView():tab==='bil'?bzView():tab==='plb'?plbView():tab==='sales'?salesView():tab==='scn'?scanView():tab==='cat'?catsView():tab==='off'?offersView():tab==='del'?deliveryView():tab==='set'?setView():tab==='cus'?cusView():tab==='adr'?addrView():prods());
 }
 function wa(r){const n=r.phone.length===10?'91'+r.phone:r.phone,t=r.status==='Delivering'?'Hi '+r.name+', your order ('+r.id+') from AIRCLUB CLOTHING is out for delivery.'+(r.track?' Delivery info: '+r.track+'.':''):'Hi '+r.name+', your selected styles ('+r.id+') are '+(r.status==='Ready at shop'?'ready':'being kept ready')+' at AIRCLUB CLOTHING'+(S.cfg.addr?', '+S.cfg.addr:'')+'. '+(S.cfg.timing?'Timing: '+S.cfg.timing+'. ':'')+'Please visit us.';return 'https://wa.me/'+n+'?text='+encodeURIComponent(t)}
 function orderMsgUrl(r){
@@ -1137,13 +1149,15 @@ const bz0=()=>({step:'scan',items:[],price:null,only:null,name:'',phone:'',disc:
 let BZ=bz0(),PL={name:'',price:'',pages:1,start:1};
 const bzN=()=>BZ.items.reduce((t,i)=>t+i.q,0);
 const bzSub=()=>BZ.items.reduce((t,i)=>t+i.price*i.q,0);
-const bzDisc=()=>{const s=bzSub(),d=Number(BZ.disc)||0;return Math.max(0,Math.min(s,BZ.dt==='pc'?Math.round(s*Math.min(100,d)/100):d))};
-const bzTot=()=>bzSub()-bzDisc();
+const bzCalc=()=>{const ok=i=>i.cat&&tiersOf(i.cat).length,oth=BZ.items.filter(i=>!ok(i)).reduce((t,i)=>t+i.price*i.q,0);return calc(BZ.items.filter(ok).map(i=>({cat:i.cat,q:i.q,price:i.price}))).total+oth};
+const bzOff=()=>Math.max(0,bzSub()-bzCalc());
+const bzDisc=()=>{const s=bzSub()-bzOff(),d=Number(BZ.disc)||0;return Math.max(0,Math.min(s,BZ.dt==='pc'?Math.round(s*Math.min(100,d)/100):d))};
+const bzTot=()=>bzSub()-bzOff()-bzDisc();
 const bzGo=s=>()=>{BZ.step=s;BZ.err='';if(s==='scan')BZ.only=null;render()};
 function bzAdd(p,size){
   const k=p.id+'|'+size,ex=BZ.items.find(i=>i.key===k),has=p.stock&&p.stock[size]!==undefined?Number(p.stock[size]):Infinity,q=ex?ex.q+1:1;
   if(q>has){alert('Only '+has+' in stock: '+p.name+' ('+size+')');return}
-  if(ex)ex.q=q;else BZ.items.push({key:k,pid:p.id,code:p.code,name:p.name,size,price:bzPrice(p),q});
+  if(ex)ex.q=q;else BZ.items.push({key:k,pid:p.id,code:p.code,name:p.name,cat:p.cat,size,price:bzPrice(p),q});
   render();
 }
 function bzGot(raw){
@@ -1163,7 +1177,7 @@ function bzScan(){
   const pi=h('input',{type:'number',inputmode:'numeric',placeholder:'Price on label, e.g. 399',style:'flex:1'}),n=bzN();
   return h('div',{},bzTabs(),
     BZ.err?h('div',{class:'note',style:'border-left-color:var(--wn);color:var(--wn);margin:10px 0'},BZ.err):'',
-    h('div',{class:'box'},h('b',{style:'font-size:17px'},n+' item'+(n===1?'':'s')+' \u00b7 '+bzRs(bzSub())),bzLines(true)),
+    h('div',{class:'box'},h('b',{style:'font-size:17px'},n+' item'+(n===1?'':'s')+' \u00b7 '+bzRs(bzSub()-bzOff())),bzLines(true),bzOff()?h('div',{class:'mu',style:'color:var(--ac)'},'Offer / combo saving '+bzRs(bzOff())):''),
     h('button',{class:'btn',style:'width:100%;margin:10px 0',onclick:()=>scanOpen(3)},'Scan label barcode'),
     h('div',{class:'box'},h('label',{},'No camera? Type the price'),h('div',{class:'row'},pi,h('button',{class:'btn s',onclick:()=>{const v=Number(pi.value);if(!(v>0)){alert('Enter the price');return}BZ.price=v;BZ.only=null;BZ.err='';BZ.step='pick';render()}},'Show'))),
     h('button',{class:'btn o',style:'width:100%;margin:10px 0 0',onclick:bzGo('nl')},'Not listed item'),
@@ -1193,7 +1207,7 @@ function bzTotal(){
   const fin=h('div',{style:'font-size:40px;font-weight:900;color:var(--bp);text-align:center'},bzRs(bzTot())),
     di=h('input',{type:'number',inputmode:'numeric',value:BZ.disc,placeholder:'Discount',oninput:e=>{BZ.disc=e.target.value;fin.textContent=bzRs(bzTot())}});
   return h('div',{},bzHead('Final amount',bzGo('cust')),h('div',{class:'box'},
-    h('div',{class:'row',style:'justify-content:space-between'},h('span',{},'Total'),h('b',{},bzRs(bzSub()))),
+    h('div',{class:'row',style:'justify-content:space-between'},h('span',{},'Total'),h('b',{},bzRs(bzSub()))),bzOff()?h('div',{class:'row',style:'justify-content:space-between;color:var(--ac)'},h('span',{},'Offer / combo'),h('b',{},'\u2212'+bzRs(bzOff()))):'',
     h('label',{},'Discount (optional)'),h('div',{class:'row'},h('div',{style:'flex:1'},di),['rs','pc'].map(k=>h('button',{class:'chip'+(BZ.dt===k?' on':''),onclick:()=>{BZ.dt=k;render()}},k==='rs'?'\u20b9':'%'))),
     h('div',{class:'mu',style:'text-align:center;margin-top:12px'},'Customer pays'),fin),
     h('button',{class:'btn',style:'width:100%',onclick:bzGo('pay')},'Continue'));
@@ -1208,20 +1222,20 @@ async function bzFinish(pay){
     BZ.time=Date.now();BZ.no='B'+ymd(new Date()).replace(/-/g,'').slice(2)+'-'+String(BZ.time%100000).padStart(5,'0');
     BZ.items.forEach(i=>{const p=S.products.find(x=>x.id===i.pid);if(p&&p.stock&&p.stock[i.size]!==undefined)p.stock[i.size]=Math.max(0,Number(p.stock[i.size])-i.q)});
     BZ.saved=true;BZ.step='bill';render();save();
-    try{await setDoc(doc(db,'bills',BZ.no),clean({no:BZ.no,name:BZ.name.trim(),phone:BZ.phone,items:BZ.items.map(i=>({code:i.code||'',name:i.name,size:i.size,q:i.q,price:i.price})),sub:bzSub(),disc:bzDisc(),total:bzTot(),pay,time:BZ.time,uid:auth.currentUser.uid}))}
+    try{await setDoc(doc(db,'bills',BZ.no),clean({no:BZ.no,name:BZ.name.trim(),phone:BZ.phone,items:BZ.items.map(i=>({code:i.code||'',name:i.name,size:i.size,q:i.q,price:i.price})),sub:bzSub(),off:bzOff(),disc:bzDisc(),total:bzTot(),pay,time:BZ.time,uid:auth.currentUser.uid}))}
     catch(e){alert('Bill is ready and stock is updated, but the customer record could not be saved ('+(e.code||e.message)+'). Add a Firestore rule for the "bills" collection.')}
   }else{BZ.step='bill';render()}
 }
 const bzText=()=>['AIRCLUB CLOTHING'].concat(S.cfg.addr?[S.cfg.addr]:[],['Bill '+BZ.no+' \u00b7 '+new Date(BZ.time).toLocaleString('en-IN'),'Name: '+BZ.name,''],
   BZ.items.map((i,n)=>(n+1)+'. '+i.name+(i.manual?'':' ('+i.size+')')+' \u00d7'+i.q+' = '+bzRs(i.price*i.q)),
-  [''],bzDisc()?['Subtotal '+bzRs(bzSub()),'Discount -'+bzRs(bzDisc())]:[],['Total '+bzRs(bzTot()),'Paid by '+BZ.pay,'','Thank you! Visit again.']).join('\n');
+  [''],(bzDisc()||bzOff())?['Subtotal '+bzRs(bzSub())].concat(bzOff()?['Offer/combo -'+bzRs(bzOff())]:[],bzDisc()?['Discount -'+bzRs(bzDisc())]:[]):[],['Total '+bzRs(bzTot()),'Paid by '+BZ.pay,'','Thank you! Visit again.']).join('\n');
 function bzBillEl(){
   const r=(a,b,bd)=>h('div',{style:'display:flex;justify-content:space-between;gap:8px'+(bd?';font-weight:700':'')},h('span',{},a),h('span',{},b));
   return h('div',{class:'pl',style:'width:72mm;box-sizing:border-box;padding:2mm;background:#fff;color:#000;font:12px/1.4 monospace'},
     h('div',{style:'text-align:center;font-weight:800;font-size:15px'},'AIRCLUB CLOTHING'),S.cfg.addr?h('div',{style:'text-align:center'},S.cfg.addr):'',S.cfg.phone?h('div',{style:'text-align:center'},'Ph: '+S.cfg.phone):'',
     h('div',{style:'border-top:1px dashed #000;margin:5px 0'}),r('Bill '+BZ.no,new Date(BZ.time).toLocaleDateString('en-IN')),r(BZ.name,BZ.phone),h('div',{style:'border-top:1px dashed #000;margin:5px 0'}),
     BZ.items.map(i=>r(i.name+(i.manual?'':' ('+i.size+')')+' \u00d7'+i.q,bzRs(i.price*i.q))),h('div',{style:'border-top:1px dashed #000;margin:5px 0'}),
-    bzDisc()?[r('Subtotal',bzRs(bzSub())),r('Discount','-'+bzRs(bzDisc()))]:'',r('TOTAL',bzRs(bzTot()),1),r('Paid by',BZ.pay),h('div',{style:'text-align:center;margin-top:6px'},'Thank you! Visit again.'));
+    (bzDisc()||bzOff())?[r('Subtotal',bzRs(bzSub())),bzOff()?r('Offer / combo','-'+bzRs(bzOff())):'',bzDisc()?r('Discount','-'+bzRs(bzDisc())):'']:'',r('TOTAL',bzRs(bzTot()),1),r('Paid by',BZ.pay),h('div',{style:'text-align:center;margin-top:6px'},'Thank you! Visit again.'));
 }
 function bzPa(css,el){
   let st=document.getElementById('pgs');if(!st){st=document.createElement('style');st.id='pgs';document.head.append(st)}
@@ -1323,6 +1337,48 @@ function plbView(){
     h('div',{class:'mu',style:'margin:8px 0'},'Share the A4 PDF to the print shop (WhatsApp, Drive, etc.) (sticker paper, print at 100% / actual size, no fit-to-page). Cut on the dashed lines and stick on each product. The preview below shows page 1.'),
     h('button',{class:'btn',style:'width:100%',onclick:()=>plPdf('share')},'Share PDF')),pv);
 }
+/* ===== Combo offers (Staff > Combo tab) ===== */
+let CMB={q:{},price:'',name:'',id:null,del:null,err:''};
+const cmbName=q=>Object.keys(q).filter(k=>q[k]>0).map(k=>q[k]+' '+k).join(' + ');
+const cmbNorm=q=>Object.keys(q).reduce((s,k)=>s+(q[k]>0?priceFor(tiersOf(k),q[k]):0),0);
+function comboView(){
+  const cats=Object.keys(S.catSizes).filter(c=>tiersOf(c).length),L=S.cfg.combos||[],q=CMB.q;
+  const nt=h('b',{}),sv=h('div',{class:'mu',style:'margin:4px 0 8px'}),bd=h('div',{});
+  const upd=()=>{
+    const ks=Object.keys(q).filter(k=>q[k]>0),n=cmbNorm(q),p=Number(CMB.price)||0;
+    bd.replaceChildren(...(ks.length?ks.map(k=>h('div',{class:'row',style:'justify-content:space-between'},h('span',{},q[k]+' \u00d7 '+k+(q[k]>1&&tiersOf(k).length>1?' (offer)':'')),h('span',{},bzRs(priceFor(tiersOf(k),q[k]))))):[h('span',{class:'mu'},'Pick at least one item')]));
+    nt.textContent=bzRs(n);
+    sv.textContent=p>0?(p<n?'Customer saves '+bzRs(n-p):'Combo price is not lower than the normal price, so it will not be used'):'Type your combo price';
+  };
+  const saveC=()=>{
+    const items=Object.keys(q).filter(k=>q[k]>0),price=Number(CMB.price);
+    if(!items.length){CMB.err='Pick at least one item';render();return}
+    if(!(price>0)){CMB.err='Type the combo price';render();return}
+    const qq={};items.forEach(k=>{qq[k]=q[k]});
+    const rec={id:CMB.id||'cm'+Date.now().toString(36),name:CMB.name.trim(),q:qq,price,on:true},a=(S.cfg.combos||[]).slice(),j=a.findIndex(x=>x.id===rec.id);
+    if(j>=0){rec.on=a[j].on!==false;a[j]=rec}else a.unshift(rec);
+    S.cfg.combos=a;save();CMB={q:{},price:'',name:'',id:null,del:null,err:''};render();
+  };
+  const row=c=>h('div',{class:'box',style:'margin:8px 0'+(c.on===false?';opacity:.6':'')},
+    h('div',{class:'row',style:'justify-content:space-between;align-items:flex-start'},h('div',{},h('b',{},c.name||cmbName(c.q)),h('div',{class:'mu'},(c.name?cmbName(c.q)+' \u00b7 ':'')+'Normal '+bzRs(cmbNorm(c.q))+' \u00b7 saves '+bzRs(Math.max(0,cmbNorm(c.q)-c.price)))),h('b',{style:'font-size:18px'},bzRs(c.price))),
+    h('div',{class:'row',style:'margin-top:8px;flex-wrap:wrap'},
+      h('button',{class:'chip'+(c.on!==false?' on':''),onclick:()=>{c.on=c.on===false;save();render()}},c.on===false?'OFF':'ON'),
+      h('button',{class:'btn s o',onclick:()=>{CMB={q:Object.assign({},c.q),price:String(c.price),name:c.name||'',id:c.id,del:null,err:''};render()}},'Edit'),
+      h('button',{class:'btn s o',onclick:()=>{if(CMB.del===c.id){S.cfg.combos=L.filter(x=>x.id!==c.id);CMB.del=null;save();render()}else{CMB.del=c.id;render()}}},CMB.del===c.id?'Tap again to delete':'Delete')));
+  const pi=h('input',{type:'number',inputmode:'numeric',value:CMB.price,placeholder:'e.g. 949',oninput:e=>{CMB.price=e.target.value;upd()}}),
+    ni=h('input',{value:CMB.name,placeholder:'Optional, e.g. Weekend combo',oninput:e=>{CMB.name=e.target.value}});
+  upd();
+  return h('div',{},
+    h('div',{class:'box'},h('h3',{},'Saved combos'),L.length?L.map(row):h('p',{class:'mu'},'No combos yet. Add one below.'),h('div',{class:'mu',style:'margin-top:6px'},'When a customer picks these items, the combo price is used. The cheapest total always wins.')),
+    h('div',{class:'box'},h('h3',{},CMB.id?'Edit combo':'Add combo'),h('div',{class:'mu',style:'margin-bottom:6px'},'Pick the items and how many of each.'),
+      cats.length?cats.map(c=>h('div',{class:'row',style:'justify-content:space-between;border-top:1px solid var(--bd);padding:8px 0'},h('div',{},h('b',{},c),h('div',{class:'mu'},'Single '+bzRs(tiersOf(c)[0]))),
+        h('div',{class:'row'},h('button',{class:'btn o s',onclick:()=>{if((q[c]||0)>0){q[c]--;render()}}},'\u2212'),h('b',{style:'min-width:20px;text-align:center'},q[c]||0),h('button',{class:'btn o s',onclick:()=>{if((q[c]||0)<9){q[c]=(q[c]||0)+1;render()}}},'+')))):h('p',{class:'mu'},'Set category prices first (Categories tab, offer prices).'),
+      h('div',{class:'note',style:'margin:10px 0'},h('b',{},'Normal price now (your existing offers)'),bd,h('div',{class:'row',style:'justify-content:space-between;border-top:1px solid var(--bd);margin-top:6px;padding-top:6px'},h('b',{},'Total'),nt)),
+      h('label',{},'Combo price \u20b9 (you decide)'),pi,sv,h('label',{},'Name'),ni,
+      CMB.err?h('div',{style:'color:var(--wn);margin:8px 0'},CMB.err):'',
+      h('div',{class:'row',style:'margin-top:10px'},h('button',{class:'btn',style:'flex:1',onclick:saveC},'Save combo'),CMB.id?h('button',{class:'btn o',onclick:()=>{CMB={q:{},price:'',name:'',id:null,del:null,err:''};render()}},'Cancel'):'')));
+}
+
 render();
 </script>
 </body>
