@@ -1341,6 +1341,7 @@ function plbView(){
 let CMB={q:{},price:'',name:'',id:null,del:null,err:''};
 const cmbName=q=>Object.keys(q).filter(k=>q[k]>0).map(k=>q[k]+' '+k).join(' + ');
 const cmbNorm=q=>Object.keys(q).reduce((s,k)=>s+(q[k]>0?priceFor(tiersOf(k),q[k]):0),0);
+const comboLine=c=>(S.cfg.combos||[]).filter(x=>x&&x.on!==false&&x.q&&x.q[c]).slice(0,2).map(x=>(x.name||cmbName(x.q))+' \u20b9'+x.price).join(' \u00b7 ');
 function comboView(){
   const cats=Object.keys(S.catSizes).filter(c=>tiersOf(c).length),L=S.cfg.combos||[],q=CMB.q;
   const nt=h('b',{}),sv=h('div',{class:'mu',style:'margin:4px 0 8px'}),bd=h('div',{});
