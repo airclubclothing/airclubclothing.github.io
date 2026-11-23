@@ -896,6 +896,17 @@ async function labelsPdf(list,how){
   else{const u=URL.createObjectURL(file),l=document.createElement('a');l.href=u;l.download=name;document.body.append(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
   setTimeout(()=>{if(confirm('Mark '+list.length+' label(s) as printed?'))list.forEach(a=>{a.printed=true;setDoc(doc(db,'addresses',a.id),clean(a))})},800);
 }
+const adMiss=()=>S.requests.filter(r=>r.addr&&!AD.some(a=>a.ref===r.id));
+async function adRecover(){
+  const M=adMiss();if(!M.length)return;
+  if(!confirm('Add '+M.length+' missing address(es) from online orders?'))return;
+  let ok=0;
+  for(const r of M){
+    const ad=Object.assign({id:'a'+String(r.id).toLowerCase()},r.addr,{ref:r.id,time:r.time||Date.now(),printed:false,payment:r.payment||'',cod:r.payment==='COD'?((r.bill&&(r.bill.final||r.bill.total))||0):0});
+    try{await setDoc(doc(db,'addresses',ad.id),clean(ad));ok++}catch(e){alert('Could not save: '+(e.code||e.message));break}
+  }
+  if(ok)alert(ok+' address(es) recovered');
+}
 function addrView(){
   const url=location.origin+'/address.html',t=adQ.trim().toLowerCase();
   const L=AD.filter(a=>(adF==='all'||(adF==='new'?!a.printed:!!a.printed))&&(!t||[a.name,a.phone,a.pin,a.city,a.ref].join(' ').toLowerCase().includes(t)));
@@ -960,6 +971,7 @@ function addrView(){
         open?arr.map(a=>adEdit===a.id?editCard(a):card(a)):'')})};
   const selBar=()=>selL.length?h('div',{class:'selbar'},h('div',{style:'display:flex;justify-content:space-between;align-items:center;width:100%'},h('b',{},selL.length+' selected'),h('button',{class:'btn s o',onclick:()=>{adSel.clear();render()}},'Clear')),h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;width:100%'},(navigator.canShare?h('button',{class:'btn',style:'flex:1',onclick:()=>labelsPdf(selL,'share')},'Share PDF'):''),h('button',{class:'btn'+(navigator.canShare?' o':''),style:'flex:1',onclick:()=>labelsPdf(selL,'dl')},'Download PDF'),h('button',{class:'btn o',style:'flex:1',onclick:()=>printLabels(selL)},'Print ('+selL.length+')'))):'';
   return h('div',{},
+    adMiss().length?h('div',{class:'box',style:'border-left:4px solid var(--wn)'},h('b',{},adMiss().length+' online order address(es) are missing here'),h('div',{class:'mu',style:'margin:4px 0 8px'},'These orders are in Sales but their address was not saved.'),h('button',{class:'btn s',onclick:adRecover},'Recover now')):'',
     h('div',{class:'box'},h('b',{},'Customer address form link'),h('div',{class:'mu',style:'word-break:break-all;margin:4px 0'},url),h('div',{class:'row'},h('button',{class:'btn s',onclick:()=>{navigator.clipboard.writeText(url).then(()=>alert('Link copied'),()=>alert(url))}},'Copy link'),h('a',{class:'btn s o',href:url,target:'_blank',rel:'noopener'},'Open'))),
     h('div',{class:'chips'},[['all','All'],['new','Not printed'],['done','Printed']].map(([k,l])=>h('button',{class:'chip'+(adF===k?' on':''),onclick:()=>{adF=k;render()}},l))),
     h('input',{id:'aq',placeholder:'Search name, phone, PIN',value:adQ,oninput:e=>{adQ=e.target.value;render();const x=document.getElementById('aq');x.focus();x.setSelectionRange(adQ.length,adQ.length)}}),
