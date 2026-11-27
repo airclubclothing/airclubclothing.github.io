@@ -127,7 +127,7 @@ textarea{font:inherit;color:inherit;width:100%;padding:10px;margin-top:6px;borde
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {getAuth,onAuthStateChanged,signInAnonymously,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-import {getFirestore,collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,query,where,getDocs} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import {getFirestore,collection,doc,setDoc,getDoc,deleteDoc,updateDoc,increment,FieldPath,onSnapshot,query,where,getDocs} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 const app=initializeApp({apiKey:"AIzaSyBnPaZfzEoDpquuMPDF62GbFxvv3CIfjpA",authDomain:"airclub-clothing.firebaseapp.com",projectId:"airclub-clothing",storageBucket:"airclub-clothing.firebasestorage.app",messagingSenderId:"361635228417",appId:"1:361635228417:web:e163a7316942ceeb500900"});
 const auth=getAuth(app),db=getFirestore(app);
 function h(t,a,...c){const e=document.createElement(t);for(const k in a||{}){if(k==='class')e.className=a[k];else if(k.slice(0,2)==='on')e[k]=a[k];else e.setAttribute(k,a[k])}c.flat(9).forEach(x=>e.append(x&&x.nodeType?x:document.createTextNode(x===false||x==null?'':x)));return e}
@@ -351,13 +351,15 @@ function shop(){
 }
 const STL={'New':'Sent to shop','Packing':'Being packed','Ready at shop':'Ready at shop','Delivering':'Out for delivery','Collected':'Collected'};
 function send(extra){
+  let old=null,rq=null;
   const bs=basket.filter(b=>S.products.some(x=>x.id===b.pid));if(!bs.length){alert('Please pick at least one style');return}
-  if(bs.some(b=>{const p=S.products.find(x=>x.id===b.pid);return p.stock&&p.stock[b.size]!==undefined&&(b.q||1)>Number(p.stock[b.size])})){alert('Some quantities are more than the available stock. Please reduce them.');return}
+  if(bs.some(b=>{const p=S.products.find(x=>x.id===b.pid);return p.stock&&p.stock[b.size]!==undefined&&(b.q||1)>Number(p.stock[b.size])+holdOf(b.pid,b.size)})){alert('Some quantities are more than the available stock. Please reduce them.');return}
   if(bs.some(b=>isOut(S.products.find(x=>x.id===b.pid),b.size))){alert('Some selected sizes are sold out. Please remove them.');return}
   const items=bs.map(b=>{const p=S.products.find(x=>x.id===b.pid);return{pid:p.id,code:p.code,name:p.name,cat:p.cat,size:b.size,q:b.q||1,loc:p.loc,t:p.img||'',price:p.price||''}});
-  if(editing){const r=S.requests.find(x=>x.id===editing);if(r){r.items=items;r.bill=mkBill(items,r.addr?{addr:1}:null);r.note=note.trim();r.edited=Date.now();r.status='New'}done=r;editing=null}
-  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:(!(extra&&extra.addr)&&shopO&&shopO.name)||C.name,phone:(!(extra&&extra.addr)&&shopO&&shopO.phone)||C.phone,time:Date.now(),status:'New',items,bill:mkBill(items,extra),note:note.trim()};if(extra&&extra.payment)r.payment=extra.payment;if(extra&&extra.addr){r.addr=extra.addr;pop=r;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false,payment:r.payment||'',cod:r.payment==='COD'?((r.bill&&(r.bill.final||r.bill.total))||0):0});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);done=r}
+  if(editing){const r=S.requests.find(x=>x.id===editing);if(r){old=r.items;rq=r;r.items=items;r.bill=mkBill(items,r.addr?{addr:1}:null);r.note=note.trim();r.edited=Date.now();r.status='New'}done=r;editing=null}
+  else{const r={id:'R'+Date.now().toString(36).toUpperCase().slice(-6),uid:auth.currentUser.uid,cid:C.id,name:(!(extra&&extra.addr)&&shopO&&shopO.name)||C.name,phone:(!(extra&&extra.addr)&&shopO&&shopO.phone)||C.phone,time:Date.now(),status:'New',items,bill:mkBill(items,extra),note:note.trim()};if(extra&&extra.payment)r.payment=extra.payment;if(extra&&extra.addr){r.addr=extra.addr;pop=r;const ad=Object.assign({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},extra.addr,{ref:r.id,time:Date.now(),printed:false,payment:r.payment||'',cod:r.payment==='COD'?((r.bill&&(r.bill.final||r.bill.total))||0):0});setDoc(doc(db,'addresses',ad.id),clean(ad)).catch(e=>console.log(e))}S.requests.unshift(r);rq=r;done=r}
   save();basket=[];note='';panel=false;adr={};adrStep='form';shopO=null;shopStep='confirm';render();
+  if(rq)reserveFor(rq,old);
 }
 function mine(){
   const my=C?S.requests.filter(r=>r.cid===C.id).sort((a,b)=>b.time-a.time):[];
@@ -381,8 +383,30 @@ function mine(){
     h('div',{class:'chips'},h('button',{class:'chip'+(tn==='basket'?' on':''),onclick:()=>{ptab='basket';render()}},'Basket ('+bc()+')'),h('button',{class:'chip'+(tn==='orders'?' on':''),onclick:()=>{ptab='orders';render()}},'Your orders ('+my.length+')')),
     tn==='basket'?basketBox:orders);
 }
-const isOut=(p,s)=>(p.out||[]).includes(s)||(p.stock&&p.stock[s]!==undefined&&Number(p.stock[s])<=0);
-function soldToggle(r,i){const p=S.products.find(x=>x.id===i.pid),was=!!i.sold;i.sold=!was;if(p&&p.stock&&p.stock[i.size]!==undefined)p.stock[i.size]=Math.max(0,Number(p.stock[i.size])+(was?1:-1)*(i.q||1));save();render()}
+const isOut=(p,s)=>(p.out||[]).includes(s)||(p.stock&&p.stock[s]!==undefined&&Number(p.stock[s])+holdOf(p.id,s)<=0);
+function holdOf(pid,size){if(!editing)return 0;const r=S.requests.find(x=>x.id===editing);if(!r)return 0;return (r.items||[]).filter(i=>i.pid===pid&&i.size===size&&(i.rv||i.sold)).reduce((a,i)=>a+(i.q||1),0)}
+async function stockApply(d){
+  const jobs=[];
+  for(const pid of Object.keys(d)){
+    const p=S.products.find(x=>x.id===pid);if(!p||!p.stock)continue;
+    const args=[];
+    for(const sz of Object.keys(d[pid])){const v=d[pid][sz];if(!v||p.stock[sz]===undefined)continue;args.push(new FieldPath('stock',sz),increment(v))}
+    if(args.length)jobs.push(updateDoc(doc(db,'products',pid),...args).then(()=>{for(const sz of Object.keys(d[pid])){if(p.stock[sz]!==undefined)p.stock[sz]=Math.max(0,Number(p.stock[sz])+d[pid][sz])}snap.products[pid]=JSON.stringify(p)}));
+  }
+  await Promise.all(jobs);
+}
+function reserveFor(r,old){
+  const d={};const add=(pid,sz,v)=>{(d[pid]=d[pid]||{});d[pid][sz]=(d[pid][sz]||0)+v};
+  (old||[]).forEach(i=>{if(i.rv||i.sold)add(i.pid,i.size,(i.q||1))});
+  r.items.forEach(i=>add(i.pid,i.size,-(i.q||1)));
+  return stockApply(d).then(()=>{r.items.forEach(i=>{const p=S.products.find(x=>x.id===i.pid);if(p&&p.stock&&p.stock[i.size]!==undefined)i.rv=true});save();render()}).catch(e=>console.log('stock reserve failed',e));
+}
+function cancelOrder(r){
+  if(!confirm('Cancel this order and put the stock back?'))return;
+  const d={};r.items.forEach(i=>{if(i.rv||i.sold){(d[i.pid]=d[i.pid]||{});d[i.pid][i.size]=(d[i.pid][i.size]||0)+(i.q||1)}});
+  stockApply(d).then(()=>{r.items.forEach(i=>{delete i.rv;i.sold=false});r.status='Cancelled';r.cancelled=Date.now();save();render()}).catch(e=>alert('Could not put stock back: '+(e.code||e.message)));
+}
+function soldToggle(r,i){const p=S.products.find(x=>x.id===i.pid),was=!!i.sold;i.sold=!was;if(!i.rv&&p&&p.stock&&p.stock[i.size]!==undefined)p.stock[i.size]=Math.max(0,Number(p.stock[i.size])+(was?1:-1)*(i.q||1));save();render()}
 const chartsOf=c=>(S.catCharts&&S.catCharts[c])||[];
 const chartOf=p=>{const id=p.chartId===undefined?'default':p.chartId;return id?chartsOf(p.cat).find(x=>x.id===id)||null:null};
 const mFields=p=>{const c=chartOf(p);return c?c.fields:[]};
@@ -597,7 +621,7 @@ function deliveryView(){
 const bc=()=>basket.reduce((a,b)=>a+(b.q||1),0);
 function tapSize(pid,s){const i=basket.findIndex(b=>b.pid===pid&&b.size===s);if(i>=0){basket.splice(i,1);if(lastSel&&lastSel.pid===pid&&lastSel.size===s)lastSel=null}else{basket.push({pid,size:s,q:1});lastSel={pid,size:s}}}
 function qtyCtl(b,after){
-  const p=S.products.find(x=>x.id===b.pid)||{},mx=p.stock&&p.stock[b.size]!==undefined?Number(p.stock[b.size]):Infinity;
+  const p=S.products.find(x=>x.id===b.pid)||{},mx=p.stock&&p.stock[b.size]!==undefined?Number(p.stock[b.size])+holdOf(b.pid,b.size):Infinity;
   const ch=d=>{const n=(b.q||1)+d;if(n<1){const i=basket.indexOf(b);if(i>=0)basket.splice(i,1);lastSel=null}else if(n>mx){alert('Only '+mx+' available in this size');return}else b.q=n;if(!basket.length||!after)render();else after()};
   return h('div',{class:'row',style:'margin:0;gap:6px;flex:none'},h('button',{class:'btn o s',onclick:()=>ch(-1)},'\u2212'),h('b',{style:'min-width:22px;text-align:center'},String(b.q||1)),h('button',{class:'btn o s',onclick:()=>ch(1)},'+'));
 }
@@ -752,7 +776,7 @@ function orderMsgUrl(r){
 }
 function salesView(){
   const isO=r=>!!r.addr,sh=S.requests.filter(r=>!isO(r)),on=S.requests.filter(isO);
-  const act=a=>a.filter(r=>r.status!=='Collected').length,dn=a=>a.filter(r=>r.status==='Collected').length;
+  const act=a=>a.filter(r=>r.status!=='Collected'&&r.status!=='Cancelled').length,dn=a=>a.filter(r=>r.status==='Collected'||r.status==='Cancelled').length;
   const cur=sSec==='online'?on:sh;
   const seg=(items)=>h('div',{class:'row',style:'flex-wrap:wrap'},items.map(([k,l,get,set])=>h('button',{class:'btn s'+(get()===k?'':' o'),style:'flex:1',onclick:()=>{set(k);render()}},l)));
   return h('div',{},
@@ -763,7 +787,7 @@ function salesView(){
 }
 const tel=n=>{n=String(n||'').replace(/\D/g,'');return 'tel:'+(n.length===10?'+91'+n:(n.startsWith('+')?n:'+'+n))};
 function reqs(dn,sec){
-  const L=S.requests.filter(r=>(r.status==='Collected')===!!dn&&(sec==='online'?!!r.addr:!r.addr));
+  const L=S.requests.filter(r=>(r.status==='Collected'||r.status==='Cancelled')===!!dn&&(sec==='online'?!!r.addr:!r.addr));
   if(!L.length)return h('p',{class:'mu'},dn?'No completed orders yet.':'No active requests.');
   return h('div',{},L.map(r=>h('div',{class:'box'},
     h('div',{class:'row',style:'justify-content:space-between'},h('b',{},r.cid+' · '+r.name+(r.edited?' · edited':'')),h('span',{class:'st'},r.status)),
@@ -772,7 +796,7 @@ function reqs(dn,sec){
     r.payment==='COD'?h('div',{style:'display:inline-block;margin:6px 0;padding:4px 10px;border-radius:10px;background:#ffd23f;color:#1c1b19;font-weight:800;font-size:13px'},'COD · Collect ₹'+((r.bill&&(r.bill.final||r.bill.total))||0)+' on delivery'):'',
     r.note?h('div',{class:'note'},'Note: '+r.note):'',
     h('div',{class:'th'},r.items.map(i=>h('div',{},ph(S.products.find(p=>p.id===i.pid)||{code:i.code}),i.code+' / '+i.size+((i.q||1)>1?' x'+i.q:''),h('br'),i.loc||'',h('br'),h('button',{class:'btn s'+(i.sold?'':' o'),onclick:()=>soldToggle(r,i)},i.sold?'Sold ✓':'Mark sold')))),
-    (r.bill&&r.bill.total>0?billStaff(r.bill):''),h('a',{class:'btn s',href:tel(r.phone)},'Call '+r.phone),' ',(r.addr&&r.addr.phone2)?[h('a',{class:'btn s o',href:tel(r.addr.phone2)},'Call alt '+r.addr.phone2),' ']:'',h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]:[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed')]))));
+    (r.bill&&r.bill.total>0?billStaff(r.bill):''),h('a',{class:'btn s',href:tel(r.phone)},'Call '+r.phone),' ',(r.addr&&r.addr.phone2)?[h('a',{class:'btn s o',href:tel(r.addr.phone2)},'Call alt '+r.addr.phone2),' ']:'',h('a',{class:'btn s o',href:wa(r),target:'_blank',rel:'noopener'},'WhatsApp customer'),h('input',{placeholder:'Delivery note / tracking number (optional)',value:r.track||'',onchange:e=>{r.track=e.target.value.trim();save()}}),h('div',{class:'row',style:'flex-wrap:wrap'},dn?(r.status==='Cancelled'?[h('span',{class:'mu'},'Cancelled order, stock returned')]:[h('button',{class:'btn s o',onclick:()=>{r.status='Ready at shop';save();render()}},'Move back to active')]):[...['New','Packing','Ready at shop','Delivering'].map(s=>h('button',{class:'btn s'+(r.status===s?'':' o'),onclick:()=>{r.status=s;r.shipped=(s==='Delivering');save();render()}},s==='Delivering'?'Send for delivery':s)),h('button',{class:'btn s',onclick:()=>{r.status='Collected';save();render()}},'Done \u2192 move to Completed'),h('button',{class:'btn s o',style:'color:#ff6b6b',onclick:()=>cancelOrder(r)},'Cancel order')]))));
 }
 function cusView(){
   const m=new Map();CU.forEach(c=>{if(c.phone&&!m.has(c.phone))m.set(c.phone,c)});const L=[...m.values()];
@@ -1057,6 +1081,7 @@ function scanGot(raw){
     if(!a){scErr=IPOST.test(code)?'That is an India Post tracking code. Scan the label barcode first.':'This barcode is not one of our labels ('+code+'). Print the label first, or try again.';scMode='home';render();return}
     const r=a.ref&&S.requests.find(x=>x.id===a.ref);
     if(!r){scErr='No order found for this label ('+code+').';scMode='home';render();return}
+    if(r.status==='Cancelled'){scErr='This order was cancelled ('+code+').';scMode='home';render();return}
     scRid=r.id;scLid=code;scMode='pack';render();
   }else{
     if(LBLID.test(code)){scErr='That is the label barcode. Scan the India Post tracking barcode.';scMode='pack';render();return}
